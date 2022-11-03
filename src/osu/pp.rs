@@ -402,6 +402,10 @@ impl OsuPpInner {
 
         let mut multiplier = PERFORMANCE_BASE_MULTIPLIER;
 
+        if self.mods.rx() {
+            multiplier *= 1.02;
+        }
+
         if self.mods.nf() {
             multiplier *= (1.0 - 0.02 * self.effective_miss_count).max(0.9);
         }
@@ -411,9 +415,18 @@ impl OsuPpInner {
         }
 
         let aim_value = self.compute_aim_value();
-        let speed_value = self.compute_speed_value();
+        let mut speed_value = self.compute_speed_value();
         let acc_value = self.compute_accuracy_value();
         let flashlight_value = self.compute_flashlight_value();
+
+        if self.mods.rx() {
+            let stream_factor = aim_value / speed_value;
+
+            if stream_factor < 1.0 {
+                let accuracy_factor = (1.0 - self.acc).abs();
+                speed_value *= 0.96 - accuracy_factor;
+            }
+        }
 
         let pp = (aim_value.powf(1.1)
             + speed_value.powf(1.1)
@@ -500,30 +513,33 @@ impl OsuPpInner {
     }
 
     fn compute_speed_value(&self) -> f64 {
-        if self.mods.rx() {
-            return 0.0;
-        }
-
         let mut speed_value =
             (5.0 * (self.attrs.speed / 0.0675).max(1.0) - 4.0).powi(3) / 100_000.0;
 
         let total_hits = self.total_hits();
 
-        let len_bonus = 0.95
-            + 0.4 * (total_hits / 2000.0).min(1.0)
-            + (total_hits > 2000.0) as u8 as f64 * (total_hits / 2000.0).log10() * 0.5;
+        let mut len_bonus = 1.0;
+        if self.mods.rx() {
+            if self.effective_miss_count > 0.0 {
+                speed_value *= self.calculate_miss_penalty(self.attrs.speed_difficult_strain_count);
+            }
+        } else {
+            len_bonus = 0.95
+                + 0.4 * (total_hits / 2000.0).min(1.0)
+                + (total_hits > 2000.0) as u8 as f64 * (total_hits / 2000.0).log10() * 0.5;
 
-        speed_value *= len_bonus;
+            speed_value *= len_bonus;
 
-        // * Penalize misses by assessing # of misses relative to the total # of objects.
-        // * Default a 3% reduction for any # of misses.
-        if self.effective_miss_count > 0.0 {
-            speed_value *= 0.97
-                * (1.0 - (self.effective_miss_count / total_hits).powf(0.775))
-                    .powf(self.effective_miss_count.powf(0.875));
+            // * Penalize misses by assessing # of misses relative to the total # of objects.
+            // * Default a 3% reduction for any # of misses.
+            if self.effective_miss_count > 0.0 {
+                speed_value *= 0.97
+                    * (1.0 - (self.effective_miss_count / total_hits).powf(0.775))
+                        .powf(self.effective_miss_count.powf(0.875));
+            }
+
+            speed_value *= self.get_combo_scaling_factor();
         }
-
-        speed_value *= self.get_combo_scaling_factor();
 
         let ar_factor = if self.attrs.ar > 10.33 {
             0.3 * (self.attrs.ar - 10.33)

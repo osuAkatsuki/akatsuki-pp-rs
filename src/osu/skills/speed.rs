@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, f64::consts::PI};
 
-use crate::osu::difficulty_object::OsuDifficultyObject;
+use crate::{osu::difficulty_object::OsuDifficultyObject, Mods};
 
 use super::{next, previous, previous_start_time, OsuStrainSkill, Skill, StrainSkill};
 
@@ -13,13 +13,14 @@ pub(crate) struct Speed {
     pub(crate) strain_peaks: Vec<f64>,
     object_strains: Vec<f64>,
     hit_window: f64,
+    pub(crate) mods: u32,
 }
 
 impl Speed {
     const SKILL_MULTIPLIER: f64 = 1375.0;
     const STRAIN_DECAY_BASE: f64 = 0.3;
 
-    pub(crate) fn new(hit_window: f64) -> Self {
+    pub(crate) fn new(hit_window: f64, mods: u32) -> Self {
         Self {
             curr_strain: 0.0,
             curr_section_peak: 0.0,
@@ -28,6 +29,7 @@ impl Speed {
             strain_peaks: Vec::new(),
             object_strains: Vec::new(),
             hit_window,
+            mods,
         }
     }
 
@@ -90,9 +92,15 @@ impl StrainSkill for Speed {
         self.curr_strain *= Self::strain_decay(curr.strain_time);
         self.curr_strain += SpeedEvaluator::evaluate_diff_of(curr, diff_objects, self.hit_window)
             * Self::SKILL_MULTIPLIER;
-        self.curr_rhythm = RhythmEvaluator::evaluate_diff_of(curr, diff_objects, self.hit_window);
 
-        let total_strain = self.curr_strain * self.curr_rhythm;
+        let mut total_strain = self.curr_strain;
+        if !self.mods.rx() {
+            self.curr_rhythm =
+                RhythmEvaluator::evaluate_diff_of(curr, diff_objects, self.hit_window);
+
+            total_strain *= self.curr_rhythm;
+        }
+
         self.object_strains.push(total_strain);
 
         total_strain

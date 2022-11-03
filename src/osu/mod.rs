@@ -139,8 +139,6 @@ impl<'map> OsuStars<'map> {
         };
 
         let aim_difficult_strain_count = skills::OsuStrainSkill::count_difficult_strains(&mut aim);
-
-        // currently unused as relax pp doesn't include speed
         let speed_difficult_strain_count =
             skills::OsuStrainSkill::count_difficult_strains(&mut speed);
 
@@ -150,7 +148,7 @@ impl<'map> OsuStars<'map> {
         }
 
         if mods.rx() {
-            speed_rating = 0.0;
+            speed_rating *= 0.8;
             flashlight_rating *= 0.7;
         }
 
