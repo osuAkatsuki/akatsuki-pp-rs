@@ -148,7 +148,6 @@ impl<'map> OsuStars<'map> {
         }
 
         if mods.rx() {
-            speed_rating *= 0.8;
             flashlight_rating *= 0.7;
         }
 
