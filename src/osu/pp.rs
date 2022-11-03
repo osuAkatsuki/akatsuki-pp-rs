@@ -403,7 +403,7 @@ impl OsuPpInner {
         let mut multiplier = PERFORMANCE_BASE_MULTIPLIER;
 
         if self.mods.rx() {
-            multiplier *= 1.02;
+            multiplier *= 1.04;
         }
 
         if self.mods.nf() {
@@ -414,8 +414,8 @@ impl OsuPpInner {
             multiplier *= 1.0 - (self.attrs.n_spinners as f64 / total_hits).powf(0.85);
         }
 
-        let aim_value = self.compute_aim_value();
-        let mut speed_value = self.compute_speed_value();
+        let mut aim_value = self.compute_aim_value();
+        let speed_value = self.compute_speed_value();
         let acc_value = self.compute_accuracy_value();
         let flashlight_value = self.compute_flashlight_value();
 
@@ -424,7 +424,7 @@ impl OsuPpInner {
 
             if stream_factor < 1.0 {
                 let accuracy_factor = (1.0 - self.acc).abs();
-                speed_value *= 0.96 - accuracy_factor;
+                aim_value *= 0.9 - accuracy_factor;
             }
         }
 
