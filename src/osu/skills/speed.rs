@@ -90,8 +90,9 @@ impl StrainSkill for Speed {
         diff_objects: &[OsuDifficultyObject<'_>],
     ) -> f64 {
         self.curr_strain *= Self::strain_decay(curr.strain_time);
-        self.curr_strain += SpeedEvaluator::evaluate_diff_of(curr, diff_objects, self.hit_window)
-            * Self::SKILL_MULTIPLIER;
+        self.curr_strain +=
+            SpeedEvaluator::evaluate_diff_of(curr, diff_objects, self.hit_window, self.mods)
+                * Self::SKILL_MULTIPLIER;
 
         let mut total_strain = self.curr_strain;
         if !self.mods.rx() {
@@ -145,16 +146,23 @@ struct SpeedEvaluator;
 impl SpeedEvaluator {
     const SINGLE_SPACING_THRESHOLD: f64 = 125.0;
     const MIN_SPEED_BONUS: f64 = 75.0; // ~200BPM
+    const MIN_SPEED_BONUS_RX: f64 = 44.11764705882353; // ~340BPM
     const SPEED_BALANCING_FACTOR: f64 = 40.;
 
     fn evaluate_diff_of(
         curr: &OsuDifficultyObject<'_>,
         diff_objects: &[OsuDifficultyObject<'_>],
         hit_window: f64,
+        mods: u32,
     ) -> f64 {
         if curr.base.is_spinner() {
             return 0.0;
         }
+
+        let min_speed_bonus = match mods.rx() {
+            true => Self::MIN_SPEED_BONUS_RX,
+            false => Self::MIN_SPEED_BONUS,
+        };
 
         // * derive strainTime for calculation
         let osu_curr_obj = curr;
@@ -180,8 +188,8 @@ impl SpeedEvaluator {
         strain_time /= ((strain_time / hit_window) / 0.93).clamp(0.92, 1.0);
 
         // * derive speedBonus for calculation
-        let speed_bonus = if strain_time < Self::MIN_SPEED_BONUS {
-            let base = (Self::MIN_SPEED_BONUS - strain_time) / Self::SPEED_BALANCING_FACTOR;
+        let speed_bonus = if strain_time < min_speed_bonus {
+            let base = (min_speed_bonus - strain_time) / Self::SPEED_BALANCING_FACTOR;
 
             1.0 + 0.75 * base * base
         } else {

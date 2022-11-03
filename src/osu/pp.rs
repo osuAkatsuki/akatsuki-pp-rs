@@ -411,7 +411,7 @@ impl OsuPpInner {
         }
 
         let mut aim_value = self.compute_aim_value();
-        let mut speed_value = self.compute_speed_value();
+        let speed_value = self.compute_speed_value();
         let acc_value = self.compute_accuracy_value();
         let flashlight_value = self.compute_flashlight_value();
 
@@ -423,7 +423,6 @@ impl OsuPpInner {
                 aim_value *= (0.94 - accuracy_factor).max(0.85);
             }
 
-            speed_value = 0.0;
             multiplier *= 1.1;
         }
 

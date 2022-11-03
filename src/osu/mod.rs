@@ -128,7 +128,7 @@ impl<'map> OsuStars<'map> {
             aim_no_sliders.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
 
         let speed_notes = speed.relevant_note_count();
-        let mut speed_rating = speed.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
+        let speed_rating = speed.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
 
         let mut flashlight_rating = flashlight.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
 
