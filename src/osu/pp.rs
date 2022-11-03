@@ -420,7 +420,7 @@ impl OsuPpInner {
 
             if stream_factor < 1.0 {
                 let accuracy_factor = (1.0 - self.acc).abs();
-                speed_value *= 0.5 - accuracy_factor;
+                speed_value *= ((0.4 - accuracy_factor) + 2.0_f64.powf(stream_factor)) / 10.0;
             }
 
             multiplier *= 1.05;
