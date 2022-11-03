@@ -423,7 +423,7 @@ impl OsuPpInner {
                 aim_value *= (0.94 - accuracy_factor).max(0.85);
             }
 
-            multiplier *= 1.1;
+            multiplier *= 1.02;
         }
 
         let pp = (aim_value.powf(1.1)
