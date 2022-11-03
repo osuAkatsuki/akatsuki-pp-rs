@@ -402,10 +402,6 @@ impl OsuPpInner {
 
         let mut multiplier = PERFORMANCE_BASE_MULTIPLIER;
 
-        if self.mods.rx() {
-            multiplier *= 1.04;
-        }
-
         if self.mods.nf() {
             multiplier *= (1.0 - 0.02 * self.effective_miss_count).max(0.9);
         }
@@ -415,7 +411,7 @@ impl OsuPpInner {
         }
 
         let mut aim_value = self.compute_aim_value();
-        let speed_value = self.compute_speed_value();
+        let mut speed_value = self.compute_speed_value();
         let acc_value = self.compute_accuracy_value();
         let flashlight_value = self.compute_flashlight_value();
 
@@ -426,6 +422,9 @@ impl OsuPpInner {
                 let accuracy_factor = (1.0 - self.acc).abs();
                 aim_value *= 0.9 - accuracy_factor;
             }
+
+            speed_value = 0.0;
+            multiplier *= 1.05;
         }
 
         let pp = (aim_value.powf(1.1)
