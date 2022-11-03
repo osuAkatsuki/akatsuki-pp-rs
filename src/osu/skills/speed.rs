@@ -118,6 +118,18 @@ impl StrainSkill for Speed {
 impl OsuStrainSkill for Speed {
     const REDUCED_SECTION_COUNT: usize = 5;
     const DIFFICULTY_MULTIPLER: f64 = 1.04;
+
+    fn count_difficult_strains(&mut self) -> f64 {
+        let top_strain = self
+            .object_strains
+            .iter()
+            .fold(f64::NEG_INFINITY, |prev, curr| prev.max(*curr));
+
+        self.object_strains
+            .iter()
+            .map(|strain| (strain / top_strain).powi(4))
+            .sum()
+    }
 }
 
 struct SpeedEvaluator;

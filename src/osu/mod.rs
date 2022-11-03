@@ -138,13 +138,18 @@ impl<'map> OsuStars<'map> {
             1.0
         };
 
+        let aim_difficult_strain_count = skills::OsuStrainSkill::count_difficult_strains(&mut aim);
+
+        // currently unused as relax pp doesn't include speed
+        let speed_difficult_strain_count =
+            skills::OsuStrainSkill::count_difficult_strains(&mut speed);
+
         if mods.td() {
             aim_rating = aim_rating.powf(0.8);
             flashlight_rating = flashlight_rating.powf(0.8);
         }
 
         if mods.rx() {
-            aim_rating *= 0.9;
             speed_rating = 0.0;
             flashlight_rating *= 0.7;
         }
@@ -176,6 +181,8 @@ impl<'map> OsuStars<'map> {
         attrs.speed = speed_rating;
         attrs.flashlight = flashlight_rating;
         attrs.slider_factor = slider_factor;
+        attrs.aim_difficult_strain_count = aim_difficult_strain_count;
+        attrs.speed_difficult_strain_count = speed_difficult_strain_count;
         attrs.stars = star_rating;
         attrs.speed_note_count = speed_notes;
 
@@ -508,6 +515,10 @@ pub struct OsuDifficultyAttributes {
     pub flashlight: f64,
     /// The ratio of the aim strain with and without considering sliders
     pub slider_factor: f64,
+    /// The count of difficult aim strains.
+    pub aim_difficult_strain_count: f64,
+    /// The count of difficult speed strains.
+    pub speed_difficult_strain_count: f64,
     /// The number of clickable objects weighted by difficulty.
     pub speed_note_count: f64,
     /// The approach rate.

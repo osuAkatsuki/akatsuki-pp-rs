@@ -388,7 +388,7 @@ struct OsuPpInner {
 }
 
 impl OsuPpInner {
-    fn calculate(mut self) -> OsuPerformanceAttributes {
+    fn calculate(self) -> OsuPerformanceAttributes {
         let total_hits = self.state.total_hits();
 
         if total_hits == 0 {
@@ -408,28 +408,6 @@ impl OsuPpInner {
 
         if self.mods.so() && total_hits > 0.0 {
             multiplier *= 1.0 - (self.attrs.n_spinners as f64 / total_hits).powf(0.85);
-        }
-
-        if self.mods.rx() {
-            // * https://www.desmos.com/calculator/bc9eybdthb
-            // * we use OD13.3 as maximum since it's the value at which great hitwidow becomes 0
-            // * this is well beyond currently maximum achievable OD which is 12.17 (DTx2 + DA with OD11)
-            let (n100_mult, n50_mult) = if self.attrs.od > 0.0 {
-                (
-                    1.0 - (self.attrs.od / 13.33).powf(1.8),
-                    1.0 - (self.attrs.od / 13.33).powi(5),
-                )
-            } else {
-                (1.0, 1.0)
-            };
-
-            // * As we're adding Oks and Mehs to an approximated number of combo breaks the result can be
-            // * higher than total hits in specific scenarios (which breaks some calculations) so we need to clamp it.
-            self.effective_miss_count = (self.effective_miss_count
-                + self.state.n100 as f64
-                + n100_mult
-                + self.state.n50 as f64 * n50_mult)
-                .min(total_hits);
         }
 
         let aim_value = self.compute_aim_value();
@@ -460,25 +438,30 @@ impl OsuPpInner {
 
         let total_hits = self.total_hits();
 
-        let len_bonus = 0.95
-            + 0.4 * (total_hits / 2000.0).min(1.0)
-            + (total_hits > 2000.0) as u8 as f64 * (total_hits / 2000.0).log10() * 0.5;
+        let mut len_bonus = 1.0;
+        if self.mods.rx() {
+            if self.effective_miss_count > 0.0 {
+                aim_value *= self.calculate_miss_penalty(self.attrs.aim_difficult_strain_count);
+            }
+        } else {
+            len_bonus = 0.95
+                + 0.4 * (total_hits / 2000.0).min(1.0)
+                + (total_hits > 2000.0) as u8 as f64 * (total_hits / 2000.0).log10() * 0.5;
 
-        aim_value *= len_bonus;
+            aim_value *= len_bonus;
 
-        // * Penalize misses by assessing # of misses relative to the total # of objects.
-        // * Default a 3% reduction for any # of misses.
-        if self.effective_miss_count > 0.0 {
-            aim_value *= 0.97
-                * (1.0 - (self.effective_miss_count / total_hits).powf(0.775))
-                    .powf(self.effective_miss_count);
+            // * Penalize misses by assessing # of misses relative to the total # of objects.
+            // * Default a 3% reduction for any # of misses.
+            if self.effective_miss_count > 0.0 {
+                aim_value *= 0.97
+                    * (1.0 - (self.effective_miss_count / total_hits).powf(0.775))
+                        .powf(self.effective_miss_count);
+            }
+
+            aim_value *= self.get_combo_scaling_factor();
         }
 
-        aim_value *= self.get_combo_scaling_factor();
-
-        let ar_factor = if self.mods.rx() {
-            0.0
-        } else if self.attrs.ar > 10.33 {
+        let ar_factor = if self.attrs.ar > 10.33 {
             0.3 * (self.attrs.ar - 10.33)
         } else if self.attrs.ar < 8.0 {
             0.05 * (8.0 - self.attrs.ar)
@@ -671,6 +654,10 @@ impl OsuPpInner {
         }
     }
 
+    fn calculate_miss_penalty(&self, strain_count: f64) -> f64 {
+        0.94 / ((self.effective_miss_count / (2.0 * strain_count.sqrt())) + 1.0)
+    }
+
     fn total_hits(&self) -> f64 {
         self.state.total_hits() as f64
     }
@@ -736,285 +723,5 @@ impl OsuAttributeProvider for PerformanceAttributes {
         } else {
             None
         }
-    }
-}
-
-#[cfg(not(any(feature = "async_tokio", feature = "async_str")))]
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::Beatmap;
-
-    fn test_data() -> (Beatmap, OsuDifficultyAttributes) {
-        let path = "./maps/2785319.osu";
-        let map = Beatmap::from_path(path).unwrap();
-
-        let attrs = OsuDifficultyAttributes {
-            aim: 2.8693628443424104,
-            speed: 2.533869745015772,
-            flashlight: 2.288770487900865,
-            slider_factor: 0.9803052946037858,
-            speed_note_count: 210.36373973116545,
-            ar: 9.300000190734863,
-            od: 8.800000190734863,
-            hp: 5.0,
-            n_circles: 307,
-            n_sliders: 293,
-            n_spinners: 1,
-            stars: 5.669858729379631,
-            max_combo: 909,
-        };
-
-        (map, attrs)
-    }
-
-    #[test]
-    fn hitresults_n300_n100_n_misses_best() {
-        let (map, attrs) = test_data();
-        let max_combo = attrs.max_combo();
-
-        let state = OsuPP::new(&map)
-            .attributes(attrs)
-            .combo(500)
-            .n300(300)
-            .n100(20)
-            .n_misses(2)
-            .hitresult_priority(HitResultPriority::BestCase)
-            .generate_hitresults(max_combo);
-
-        let expected = OsuScoreState {
-            max_combo: 500,
-            n300: 300,
-            n100: 20,
-            n50: 279,
-            n_misses: 2,
-        };
-
-        assert_eq!(state, expected);
-    }
-
-    #[test]
-    fn hitresults_n300_n50_n_misses_best() {
-        let (map, attrs) = test_data();
-        let max_combo = attrs.max_combo();
-
-        let state = OsuPP::new(&map)
-            .attributes(attrs)
-            .combo(500)
-            .n300(300)
-            .n50(10)
-            .n_misses(2)
-            .hitresult_priority(HitResultPriority::BestCase)
-            .generate_hitresults(max_combo);
-
-        let expected = OsuScoreState {
-            max_combo: 500,
-            n300: 300,
-            n100: 289,
-            n50: 10,
-            n_misses: 2,
-        };
-
-        assert_eq!(state, expected);
-    }
-
-    #[test]
-    fn hitresults_n50_n_misses_worst() {
-        let (map, attrs) = test_data();
-        let max_combo = attrs.max_combo();
-
-        let state = OsuPP::new(&map)
-            .attributes(attrs)
-            .combo(500)
-            .n50(10)
-            .n_misses(2)
-            .hitresult_priority(HitResultPriority::WorstCase)
-            .generate_hitresults(max_combo);
-
-        let expected = OsuScoreState {
-            max_combo: 500,
-            n300: 0,
-            n100: 589,
-            n50: 10,
-            n_misses: 2,
-        };
-
-        assert_eq!(state, expected);
-    }
-
-    #[test]
-    fn hitresults_n300_n100_n50_n_misses_worst() {
-        let (map, attrs) = test_data();
-        let max_combo = attrs.max_combo();
-
-        let state = OsuPP::new(&map)
-            .attributes(attrs)
-            .combo(500)
-            .n300(300)
-            .n100(50)
-            .n50(10)
-            .n_misses(2)
-            .hitresult_priority(HitResultPriority::WorstCase)
-            .generate_hitresults(max_combo);
-
-        let expected = OsuScoreState {
-            max_combo: 500,
-            n300: 300,
-            n100: 50,
-            n50: 249,
-            n_misses: 2,
-        };
-
-        assert_eq!(state, expected);
-    }
-
-    #[test]
-    fn hitresults_acc_n_misses_best() {
-        let (map, attrs) = test_data();
-        let max_combo = attrs.max_combo();
-
-        let state = OsuPP::new(&map)
-            .attributes(attrs)
-            .combo(500)
-            .accuracy(98.0)
-            .n_misses(2)
-            .hitresult_priority(HitResultPriority::BestCase)
-            .generate_hitresults(max_combo);
-
-        let expected = OsuScoreState {
-            max_combo: 500,
-            n300: 584,
-            n100: 15,
-            n50: 0,
-            n_misses: 2,
-        };
-
-        assert_eq!(
-            state,
-            expected,
-            "{}% vs {}%",
-            state.accuracy(),
-            expected.accuracy()
-        );
-    }
-
-    #[test]
-    fn hitresults_acc_n100_n_misses_best() {
-        let (map, attrs) = test_data();
-        let max_combo = attrs.max_combo();
-
-        let state = OsuPP::new(&map)
-            .attributes(attrs)
-            .combo(500)
-            .accuracy(95.0)
-            .n100(15)
-            .n_misses(2)
-            .hitresult_priority(HitResultPriority::BestCase)
-            .generate_hitresults(max_combo);
-
-        let expected = OsuScoreState {
-            max_combo: 500,
-            n300: 562,
-            n100: 15,
-            n50: 22,
-            n_misses: 2,
-        };
-
-        assert_eq!(
-            state,
-            expected,
-            "{}% vs {}%",
-            state.accuracy(),
-            expected.accuracy()
-        );
-    }
-
-    #[test]
-    fn hitresults_acc_n50_n_misses_best() {
-        let (map, attrs) = test_data();
-        let max_combo = attrs.max_combo();
-
-        let state = OsuPP::new(&map)
-            .attributes(attrs)
-            .combo(500)
-            .accuracy(95.0)
-            .n50(10)
-            .n_misses(2)
-            .hitresult_priority(HitResultPriority::BestCase)
-            .generate_hitresults(max_combo);
-
-        let expected = OsuScoreState {
-            max_combo: 500,
-            n300: 560,
-            n100: 29,
-            n50: 10,
-            n_misses: 2,
-        };
-
-        assert_eq!(
-            state,
-            expected,
-            "{}% vs {}%",
-            state.accuracy(),
-            expected.accuracy()
-        );
-    }
-
-    #[test]
-    fn hitresults_acc_best() {
-        let (map, attrs) = test_data();
-        let max_combo = attrs.max_combo();
-
-        let state = OsuPP::new(&map)
-            .attributes(attrs)
-            .combo(500)
-            .accuracy(90.0)
-            .hitresult_priority(HitResultPriority::BestCase)
-            .generate_hitresults(max_combo);
-
-        let expected = OsuScoreState {
-            max_combo: 500,
-            n300: 511,
-            n100: 89,
-            n50: 1,
-            n_misses: 0,
-        };
-
-        assert_eq!(
-            state,
-            expected,
-            "{}% vs {}%",
-            state.accuracy(),
-            expected.accuracy()
-        );
-    }
-
-    #[test]
-    fn hitresults_acc_worst() {
-        let (map, attrs) = test_data();
-        let max_combo = attrs.max_combo();
-
-        let state = OsuPP::new(&map)
-            .attributes(attrs)
-            .combo(500)
-            .accuracy(90.0)
-            .hitresult_priority(HitResultPriority::WorstCase)
-            .generate_hitresults(max_combo);
-
-        let expected = OsuScoreState {
-            max_combo: 500,
-            n300: 528,
-            n100: 4,
-            n50: 69,
-            n_misses: 0,
-        };
-
-        assert_eq!(
-            state,
-            expected,
-            "{}% vs {}%",
-            state.accuracy(),
-            expected.accuracy()
-        );
     }
 }

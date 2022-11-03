@@ -108,7 +108,11 @@ impl StrainSkill for Flashlight {
     }
 }
 
-impl OsuStrainSkill for Flashlight {}
+impl OsuStrainSkill for Flashlight {
+    fn count_difficult_strains(&mut self) -> f64 {
+        0.0
+    }
+}
 
 struct FlashlightEvaluator;
 

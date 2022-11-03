@@ -90,6 +90,8 @@ pub(crate) trait OsuStrainSkill: StrainSkill + Sized {
     const REDUCED_STRAIN_BASELINE: f64 = 0.75;
     const DIFFICULTY_MULTIPLER: f64 = 1.06;
 
+    fn count_difficult_strains(&mut self) -> f64;
+
     fn difficulty_value(&mut self) -> f64 {
         let mut difficulty = 0.0;
         let mut weight = 1.0;
