@@ -38,7 +38,7 @@ impl Aim {
             .object_strains
             .iter()
             .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
+            .unwrap_or(&0.0);
 
         self.object_strains
             .iter()
