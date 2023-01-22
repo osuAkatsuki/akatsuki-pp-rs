@@ -10,11 +10,12 @@ pub(crate) struct Aim {
     curr_section_peak: f64,
     curr_section_end: f64,
     pub(crate) strain_peaks: Vec<f64>,
+    object_strains: Vec<f64>,
     with_sliders: bool,
 }
 
 impl Aim {
-    const SKILL_MULTIPLIER: f64 = 23.55;
+    const SKILL_MULTIPLIER: f64 = 24.10;
     const STRAIN_DECAY_BASE: f64 = 0.15;
 
     pub(crate) fn new(with_sliders: bool) -> Self {
@@ -23,12 +24,26 @@ impl Aim {
             curr_section_peak: 0.0,
             curr_section_end: 0.0,
             strain_peaks: Vec::new(),
+            object_strains: Vec::new(),
             with_sliders,
         }
     }
 
     fn strain_decay(ms: f64) -> f64 {
         Self::STRAIN_DECAY_BASE.powf(ms / 1000.0)
+    }
+
+    pub(crate) fn count_difficult_strains(&self) -> f64 {
+        let top_strain = self
+            .object_strains
+            .iter()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+
+        self.object_strains
+            .iter()
+            .map(|strain| (strain / top_strain).powf(4.0))
+            .sum()
     }
 }
 
@@ -73,6 +88,8 @@ impl StrainSkill for Aim {
         self.curr_strain *= Self::strain_decay(curr.delta_time);
         self.curr_strain += AimEvaluator::evaluate_diff_of(curr, diff_objects, self.with_sliders)
             * Self::SKILL_MULTIPLIER;
+
+        self.object_strains.push(self.curr_strain);
 
         self.curr_strain
     }

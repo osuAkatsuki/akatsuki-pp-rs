@@ -183,6 +183,8 @@ impl<'map> OsuStars<'map> {
         attrs.slider_factor = slider_factor;
         attrs.stars = star_rating;
         attrs.speed_note_count = speed_notes;
+        attrs.aim_difficult_strain_count = aim.count_difficult_strains();
+        attrs.speed_difficult_strain_count = speed.count_difficult_strains();
 
         attrs
     }
@@ -513,6 +515,10 @@ pub struct OsuDifficultyAttributes {
     pub flashlight: f64,
     /// The ratio of the aim strain with and without considering sliders
     pub slider_factor: f64,
+    /// The number of difficult aim strains.
+    pub aim_difficult_strain_count: f64,
+    /// The number of difficult speed strains.
+    pub speed_difficult_strain_count: f64,
     /// The number of clickable objects weighted by difficulty.
     pub speed_note_count: f64,
     /// The approach rate.

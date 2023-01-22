@@ -187,9 +187,6 @@ pub mod mania;
 /// Everything about osu!standard.
 pub mod osu;
 
-/// osu! 2019 (for relax)
-pub mod osu_2019;
-
 /// Everything about osu!taiko.
 pub mod taiko;
 

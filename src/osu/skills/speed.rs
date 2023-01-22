@@ -49,6 +49,19 @@ impl Speed {
                 })
             })
     }
+
+    pub(crate) fn count_difficult_strains(&self) -> f64 {
+        let top_strain = self
+            .object_strains
+            .iter()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+
+        self.object_strains
+            .iter()
+            .map(|strain| (strain / top_strain).powf(4.0))
+            .sum()
+    }
 }
 
 impl Skill for Speed {
