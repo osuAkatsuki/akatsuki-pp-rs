@@ -115,8 +115,8 @@ impl OsuStrainSkill for Aim {}
 struct AimEvaluator;
 
 impl AimEvaluator {
-    const WIDE_ANGLE_MULTIPLIER: f64 = 1.5;
-    const ACUTE_ANGLE_MULTIPLIER: f64 = 1.95;
+    const WIDE_ANGLE_MULTIPLIER: f64 = 1.55;
+    const ACUTE_ANGLE_MULTIPLIER: f64 = 2.0;
     const SLIDER_MULTIPLIER: f64 = 1.35;
     const VELOCITY_CHANGE_MULTIPLIER: f64 = 0.75;
 

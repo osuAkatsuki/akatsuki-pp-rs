@@ -472,7 +472,7 @@ impl OsuPpInner {
         if self.mods.hd() {
             // * We want to give more reward for lower AR when it comes to aim and HD. This nerfs high AR and buffs lower AR.
             let hd_factor = if self.mods.rx() { 0.02 } else { 0.04 };
-            aim_value *= 1.0 + hd_factor * (11.0 - self.attrs.ar);
+            aim_value *= 1.0 + hd_factor * (12.0 - self.attrs.ar);
         }
 
         // * We assume 15% of sliders in a map are difficult since there's no way to tell from the performance calculator.
