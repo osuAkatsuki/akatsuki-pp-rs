@@ -271,18 +271,23 @@ impl<'m> OsuPP<'m> {
             }
         }
 
+        let nodt_bonus = match !self.mods.change_speed() && self.mods.rx() {
+            true => 1.01,
+            false => 1.0,
+        };
+
         let speed_factor = match self.mods.rx() {
             true => speed_value.powf(0.83),
             false => speed_value.powf(1.1),
         };
 
         let aim_factor = match self.mods.rx() {
-            true => aim_value.powf(1.185),
+            true => aim_value.powf(1.185 * nodt_bonus),
             false => aim_value.powf(1.1),
         };
 
         let acc_factor = match self.mods.rx() {
-            true => acc_value.powf(1.14),
+            true => acc_value.powf(1.14 * nodt_bonus),
             false => acc_value.powf(1.1),
         };
 
