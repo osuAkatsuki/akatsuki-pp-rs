@@ -340,7 +340,7 @@ impl<'m> OsuPP<'m> {
             let streams_nerf = aim_value / speed_value;
 
             if streams_nerf < 1.0 {
-                pp *= (0.05 * self.acc.unwrap()) + 0.65;
+                pp *= (0.05 * self.acc.unwrap()) + 0.8;
             }
         }
 
