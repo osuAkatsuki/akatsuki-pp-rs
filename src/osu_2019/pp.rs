@@ -267,7 +267,7 @@ impl<'m> OsuPP<'m> {
             let streams_nerf = aim_value / speed_value;
 
             if streams_nerf < 1.0 {
-                aim_value *= 9.0_f32.powf(self.acc.unwrap() - 1.07);
+                aim_value *= 9.0_f32.powf(self.acc.unwrap() - 1.15);
             }
         }
 
