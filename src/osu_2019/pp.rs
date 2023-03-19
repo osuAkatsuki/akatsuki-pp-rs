@@ -261,39 +261,28 @@ impl<'m> OsuPP<'m> {
         let speed_value = self.compute_speed_value(total_hits, effective_miss_count);
         let acc_value = self.compute_accuracy_value(total_hits);
 
-        let mut acc_depression = 1.0;
         if self.mods.rx() {
             multiplier *= 0.97;
 
             let streams_nerf = aim_value / speed_value;
 
             if streams_nerf < 1.0 {
-                let acc_factor = (1.0 - self.acc.unwrap()).abs();
-                acc_depression = (0.84 - acc_factor).max(0.5);
-
-                if acc_depression > 0.0 {
-                    aim_value *= acc_depression;
-                }
+                aim_value *= 9.0_f32.powf(self.acc.unwrap() - 1.07);
             }
         }
 
-        let nodt_bonus = match !self.mods.change_speed() && self.mods.rx() {
-            true => 1.01,
-            false => 1.0,
-        };
-
         let speed_factor = match self.mods.rx() {
-            true => speed_value.powf(0.83 * acc_depression),
+            true => speed_value.powf(0.83),
             false => speed_value.powf(1.1),
         };
 
         let aim_factor = match self.mods.rx() {
-            true => aim_value.powf(1.185 * nodt_bonus),
+            true => aim_value.powf(1.185),
             false => aim_value.powf(1.1),
         };
 
         let acc_factor = match self.mods.rx() {
-            true => acc_value.powf(1.14 * nodt_bonus),
+            true => acc_value.powf(1.14),
             false => acc_value.powf(1.1),
         };
 
