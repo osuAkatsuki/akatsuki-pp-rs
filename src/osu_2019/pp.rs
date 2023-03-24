@@ -257,12 +257,25 @@ impl<'m> OsuPP<'m> {
                 1.0 - (self.attributes.as_ref().unwrap().n_spinners as f32 / total_hits).powf(0.85);
         }
 
-        let aim_value = self.compute_aim_value(total_hits, effective_miss_count);
+        let mut aim_value = self.compute_aim_value(total_hits, effective_miss_count);
         let speed_value = self.compute_speed_value(total_hits, effective_miss_count);
         let acc_value = self.compute_accuracy_value(total_hits);
 
+        let mut acc_depression = 1.0;
         if self.mods.rx() {
             multiplier *= 0.97;
+
+            let difficulty = self.attributes.as_ref().unwrap();
+            let streams_nerf = difficulty.aim_strain / difficulty.speed_strain;
+
+            if streams_nerf < 1.0 {
+                let acc_factor = (1.0 - self.acc.unwrap()).abs();
+                acc_depression = (0.84 - acc_factor).max(0.5);
+
+                if acc_depression > 0.0 {
+                    aim_value *= acc_depression;
+                }
+            }
         }
 
         let nodt_bonus = match !self.mods.change_speed() && self.mods.rx() {
@@ -271,7 +284,7 @@ impl<'m> OsuPP<'m> {
         };
 
         let speed_factor = match self.mods.rx() {
-            true => speed_value.powf(0.83),
+            true => speed_value.powf(0.83 * acc_depression),
             false => speed_value.powf(1.1),
         };
 
@@ -333,14 +346,6 @@ impl<'m> OsuPP<'m> {
                 2382377 => 0.85,
 
                 _ => 1.0,
-            }
-        }
-
-        if self.mods.rx() {
-            let streams_nerf = aim_value / speed_value;
-
-            if streams_nerf < 1.0 {
-                pp *= (0.05 * self.acc.unwrap()) + 0.72;
             }
         }
 
