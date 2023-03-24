@@ -266,7 +266,7 @@ impl<'m> OsuPP<'m> {
             multiplier *= 0.97;
 
             let difficulty = self.attributes.as_ref().unwrap();
-            let streams_nerf = difficulty.aim_strain / difficulty.speed_strain;
+            let streams_nerf = ((difficulty.aim_strain / difficulty.speed_strain) * 100.0).round() / 100.0;
 
             if streams_nerf < 1.09 {
                 let acc_factor = (1.0 - self.acc.unwrap()).abs();
