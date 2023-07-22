@@ -17,7 +17,7 @@ pub(crate) struct Speed {
 }
 
 impl Speed {
-    const SKILL_MULTIPLIER: f64 = 1375.0;
+    const SKILL_MULTIPLIER: f64 = 1350.0;
     const STRAIN_DECAY_BASE: f64 = 0.3;
 
     pub(crate) fn new(hit_window: f64, mods: u32) -> Self {

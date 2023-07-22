@@ -14,7 +14,7 @@ pub(crate) struct Aim {
 }
 
 impl Aim {
-    const SKILL_MULTIPLIER: f64 = 23.55;
+    const SKILL_MULTIPLIER: f64 = 24.25;
     const STRAIN_DECAY_BASE: f64 = 0.15;
 
     pub(crate) fn new(with_sliders: bool) -> Self {
@@ -98,10 +98,10 @@ impl OsuStrainSkill for Aim {}
 struct AimEvaluator;
 
 impl AimEvaluator {
-    const WIDE_ANGLE_MULTIPLIER: f64 = 1.5;
-    const ACUTE_ANGLE_MULTIPLIER: f64 = 1.95;
-    const SLIDER_MULTIPLIER: f64 = 1.35;
-    const VELOCITY_CHANGE_MULTIPLIER: f64 = 0.75;
+    const WIDE_ANGLE_MULTIPLIER: f64 = 1.45;
+    const ACUTE_ANGLE_MULTIPLIER: f64 = 2.0;
+    const SLIDER_MULTIPLIER: f64 = 1.3;
+    const VELOCITY_CHANGE_MULTIPLIER: f64 = 0.7;
 
     fn evaluate_diff_of(
         curr: &OsuDifficultyObject<'_>,
