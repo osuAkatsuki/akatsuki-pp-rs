@@ -470,8 +470,7 @@ impl OsuPpInner {
 
         if self.mods.hd() {
             // * We want to give more reward for lower AR when it comes to aim and HD. This nerfs high AR and buffs lower AR.
-            let hd_factor = if self.mods.rx() { 0.02 } else { 0.04 };
-            aim_value *= 1.0 + hd_factor * (11.0 - self.attrs.ar);
+            aim_value *= 1.0 + 0.04 * (12.0 - self.attrs.ar);
         }
 
         // * We assume 15% of sliders in a map are difficult since there's no way to tell from the performance calculator.
@@ -533,8 +532,7 @@ impl OsuPpInner {
         if self.mods.hd() {
             // * We want to give more reward for lower AR when it comes to aim and HD.
             // * This nerfs high AR and buffs lower AR.
-            let hd_factor = if self.mods.ap() { 0.02 } else { 0.04 };
-            speed_value *= 1.0 + hd_factor * (11.0 - self.attrs.ar);
+            speed_value *= 1.0 + 0.04 * (12.0 - self.attrs.ar);
         }
 
         // * Calculate accuracy assuming the worst case scenario
@@ -568,6 +566,10 @@ impl OsuPpInner {
     }
 
     fn compute_accuracy_value(&self) -> f64 {
+        if self.mods.rx() {
+            return 0.0;
+        }
+
         // * This percentage only considers HitCircles of any value - in this part
         // * of the calculation we focus on hitting the timing hit window.
         let amount_hit_objects_with_acc = self.attrs.n_circles;
@@ -602,10 +604,6 @@ impl OsuPpInner {
 
         if self.mods.fl() {
             acc_value *= 1.02;
-        }
-
-        if self.mods.rx() {
-            acc_value *= 0.5;
         }
 
         acc_value
