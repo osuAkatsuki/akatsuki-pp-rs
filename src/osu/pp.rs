@@ -455,16 +455,15 @@ impl OsuPpInner {
             );
         }
 
-        let mut ar_factor = if self.attrs.ar > 10.33 {
+        let ar_factor = if self.mods.rx() {
+            0.0
+        } else if self.attrs.ar > 10.33 {
             0.3 * (self.attrs.ar - 10.33)
         } else if self.attrs.ar < 8.0 {
             0.05 * (8.0 - self.attrs.ar)
         } else {
             0.0
         };
-        if self.mods.rx() {
-            ar_factor *= 0.5;
-        }
 
         // * Buff for longer maps with high AR.
         aim_value *= 1.0 + ar_factor * len_bonus;
@@ -472,7 +471,7 @@ impl OsuPpInner {
         if self.mods.hd() {
             // * We want to give more reward for lower AR when it comes to aim and HD. This nerfs high AR and buffs lower AR.
             let hd_factor = if self.mods.rx() { 0.02 } else { 0.04 };
-            aim_value *= 1.0 + hd_factor * (12.0 - self.attrs.ar);
+            aim_value *= 1.0 + hd_factor * (11.0 - self.attrs.ar);
         }
 
         // * We assume 15% of sliders in a map are difficult since there's no way to tell from the performance calculator.
@@ -534,7 +533,8 @@ impl OsuPpInner {
         if self.mods.hd() {
             // * We want to give more reward for lower AR when it comes to aim and HD.
             // * This nerfs high AR and buffs lower AR.
-            speed_value *= 1.0 + 0.04 * (12.0 - self.attrs.ar);
+            let hd_factor = if self.mods.ap() { 0.02 } else { 0.04 };
+            speed_value *= 1.0 + hd_factor * (11.0 - self.attrs.ar);
         }
 
         // * Calculate accuracy assuming the worst case scenario
@@ -568,10 +568,6 @@ impl OsuPpInner {
     }
 
     fn compute_accuracy_value(&self) -> f64 {
-        if self.mods.rx() {
-            return 0.0;
-        }
-
         // * This percentage only considers HitCircles of any value - in this part
         // * of the calculation we focus on hitting the timing hit window.
         let amount_hit_objects_with_acc = self.attrs.n_circles;
@@ -606,6 +602,10 @@ impl OsuPpInner {
 
         if self.mods.fl() {
             acc_value *= 1.02;
+        }
+
+        if self.mods.rx() {
+            acc_value *= 0.5;
         }
 
         acc_value
