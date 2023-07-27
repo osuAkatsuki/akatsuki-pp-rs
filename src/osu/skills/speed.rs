@@ -17,7 +17,7 @@ pub(crate) struct Speed {
 }
 
 impl Speed {
-    const SKILL_MULTIPLIER: f64 = 1375.0;
+    const SKILL_MULTIPLIER: f64 = 1350.0;
     const STRAIN_DECAY_BASE: f64 = 0.3;
 
     pub(crate) fn new(hit_window: f64, mods: u32) -> Self {
@@ -106,7 +106,7 @@ impl StrainSkill for Speed {
         self.curr_strain +=
             SpeedEvaluator::evaluate_diff_of(curr, diff_objects, self.hit_window, self.mods)
                 * Self::SKILL_MULTIPLIER;
-        self.curr_rhythm = RhythmEvaluator::evaluate_diff_of(curr, diff_objects, self.hit_window);
+        self.curr_rhythm = RhythmEvaluator::evaluate_diff_of(curr, diff_objects, self.hit_window, self.mods);
 
         let total_strain = self.curr_strain * self.curr_rhythm;
         self.object_strains.push(total_strain);
@@ -210,6 +210,7 @@ impl RhythmEvaluator {
         curr: &OsuDifficultyObject<'_>,
         diff_objects: &[OsuDifficultyObject<'_>],
         hit_window: f64,
+        mods: u32
     ) -> f64 {
         if curr.base.is_spinner() {
             return 0.0;
@@ -339,6 +340,12 @@ impl RhythmEvaluator {
         }
 
         // * produces multiplier that can be applied to strain. range [1, infinity) (not really though)
-        (4.0 + rhythm_complexity_sum * Self::RHYTHM_MULTIPLIER).sqrt() / 2.0
+        let mut diff = (4.0 + rhythm_complexity_sum * Self::RHYTHM_MULTIPLIER).sqrt() / 2.0;
+
+        if mods.rx() {
+            diff *= 0.5;
+        }
+
+        diff
     }
 }
