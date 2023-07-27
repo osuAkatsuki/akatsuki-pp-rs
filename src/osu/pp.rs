@@ -444,7 +444,7 @@ impl OsuPpInner {
 
         let len_bonus = 0.95
             + 0.4 * (total_hits / 2000.0).min(1.0)
-            + (total_hits > 2000.0) as u8 as f64 * (total_hits / 2000.0).log10() * 0.5;
+            + (total_hits > 2000.0) as u8 as f64 * (total_hits / 2000.0).log10() * 0.3;
 
         aim_value *= len_bonus;
 
@@ -508,7 +508,7 @@ impl OsuPpInner {
 
         let len_bonus = 0.95
             + 0.4 * (total_hits / 2000.0).min(1.0)
-            + (total_hits > 2000.0) as u8 as f64 * (total_hits / 2000.0).log10() * 0.5;
+            + (total_hits > 2000.0) as u8 as f64 * (total_hits / 2000.0).log10() * 0.3;
 
         speed_value *= len_bonus;
 
