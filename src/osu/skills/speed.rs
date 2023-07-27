@@ -209,8 +209,7 @@ impl RhythmEvaluator {
     fn evaluate_diff_of(
         curr: &OsuDifficultyObject<'_>,
         diff_objects: &[OsuDifficultyObject<'_>],
-        hit_window: f64,
-        mods: u32
+        hit_window: f64
     ) -> f64 {
         if curr.base.is_spinner() {
             return 0.0;
@@ -340,12 +339,6 @@ impl RhythmEvaluator {
         }
 
         // * produces multiplier that can be applied to strain. range [1, infinity) (not really though)
-        let mut diff = (4.0 + rhythm_complexity_sum * Self::RHYTHM_MULTIPLIER).sqrt() / 2.0;
-
-        if mods.rx() {
-            diff *= 0.5;
-        }
-
-        diff
+        (4.0 + rhythm_complexity_sum * Self::RHYTHM_MULTIPLIER).sqrt() / 2.0
     }
 }
