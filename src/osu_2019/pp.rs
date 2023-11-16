@@ -268,7 +268,7 @@ impl<'m> OsuPP<'m> {
 
         if streams_nerf < 1.09 {
             let acc_factor = (1.0 - self.acc.unwrap()).abs();
-            acc_depression = (0.87 - acc_factor).max(0.5);
+            acc_depression = (0.9 - acc_factor).max(0.5);
 
             if acc_depression > 0.0 {
                 aim_value *= acc_depression;
@@ -373,7 +373,7 @@ impl<'m> OsuPP<'m> {
 
         // HD bonus
         if self.mods.hd() {
-            aim_value *= 1.0 + 0.04 * (12.0 - attributes.ar) as f32;
+            aim_value *= 1.0 + 0.05 * (11.0 - attributes.ar) as f32;
         }
 
         // FL bonus
@@ -439,7 +439,7 @@ impl<'m> OsuPP<'m> {
 
         // HD bonus
         if self.mods.hd() {
-            speed_value *= 1.0 + 0.04 * (12.0 - attributes.ar) as f32;
+            speed_value *= 1.0 + 0.05 * (11.0 - attributes.ar) as f32;
         }
 
         // Scaling the speed value with accuracy and OD
