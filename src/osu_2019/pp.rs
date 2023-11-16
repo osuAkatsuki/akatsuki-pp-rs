@@ -284,6 +284,10 @@ impl<'m> OsuPP<'m> {
             .powf(1.0 / 1.1)
             * multiplier;
 
+        if self.map.creator == "gwb" || self.map.creator == "Plasma" {
+            pp *= 0.85;
+        }
+
         pp *= match self.map.beatmap_id {
             // Louder than steel [ok this is epic]
             1808605 => 0.85,
@@ -294,11 +298,8 @@ impl<'m> OsuPP<'m> {
             // Just press F [Parkour's ok this is epic]
             1844776 => 0.64,
 
-            // Hardawre Store [skyapple mode]
+            // Hardware Store [skyapple mode]
             1777768 => 0.90,
-
-            // HONESTY [RIGHTEOUSNESS OF MORALITY]
-            2079597 => 0.90,
 
             // Akatsuki compilation [ok this is akatsuki]
             1962833 => {
