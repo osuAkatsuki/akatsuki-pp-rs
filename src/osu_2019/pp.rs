@@ -268,7 +268,7 @@ impl<'m> OsuPP<'m> {
 
         if streams_nerf < 1.09 {
             let acc_factor = (1.0 - self.acc.unwrap()).abs();
-            acc_depression = (0.84 - acc_factor).max(0.5);
+            acc_depression = (0.87 - acc_factor).max(0.5);
 
             if acc_depression > 0.0 {
                 aim_value *= acc_depression;
