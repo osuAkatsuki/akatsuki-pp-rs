@@ -284,6 +284,10 @@ impl<'m> OsuPP<'m> {
             .powf(1.0 / 1.1)
             * multiplier;
 
+        if self.mods.dt() && self.mods.hr() {
+            pp *= 1.025;
+        }
+
         if self.map.creator == "gwb" || self.map.creator == "Plasma" {
             pp *= 0.85;
         }
