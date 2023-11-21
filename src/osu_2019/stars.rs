@@ -41,7 +41,7 @@ pub fn stars(map: &Beatmap, mods: u32, passed_objects: Option<usize>) -> OsuDiff
     let mut scaling_factor = NORMALIZED_RADIUS / radius;
 
     if radius < 30.05 {
-        let small_circle_bonus = ((30.05 - radius) / 50.0).powf(1.1) * 2.0;
+        let small_circle_bonus = ((30.05 - radius) / 50.0).powf(1.1) * 0.75;
         scaling_factor *= 1.0 + small_circle_bonus;
     }
 
