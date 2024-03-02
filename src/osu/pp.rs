@@ -402,7 +402,7 @@ impl OsuPpInner {
 
         let mut multiplier = PERFORMANCE_BASE_MULTIPLIER;
 
-        if self.mods.nf() {
+        if self.mods.nf() && !self.mods.rx() {
             multiplier *= (1.0 - 0.02 * self.effective_miss_count).max(0.9);
         }
 
