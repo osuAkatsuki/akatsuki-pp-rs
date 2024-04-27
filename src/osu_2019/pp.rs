@@ -271,60 +271,11 @@ impl<'m> OsuPP<'m> {
             }
         }
 
-        let nodt_bonus = match !self.mods.change_speed() {
-            true => 1.02,
-            false => 1.0,
-        };
-
-        let mut pp = (aim_value.powf(1.185 * nodt_bonus)
+        let pp = (aim_value.powf(1.185)
             + speed_value.powf(0.83 * acc_depression)
-            + acc_value.powf(1.14 * nodt_bonus))
+            + acc_value.powf(1.14))
         .powf(1.0 / 1.1)
             * multiplier;
-
-        if self.mods.dt() && self.mods.hr() {
-            pp *= 1.025;
-        }
-
-        if self.map.creator == "gwb" || self.map.creator == "Plasma" {
-            pp *= 0.9;
-        }
-
-        pp *= match self.map.beatmap_id {
-            // Louder than steel [ok this is epic]
-            1808605 => 0.85,
-
-            // over the top [Above the stars]
-            1821147 => 0.70,
-
-            // Just press F [Parkour's ok this is epic]
-            1844776 => 0.64,
-
-            // Hardware Store [skyapple mode]
-            1777768 => 0.90,
-
-            // Akatsuki compilation [ok this is akatsuki]
-            1962833 => {
-                pp *= 0.885;
-
-                if self.mods.dt() {
-                    0.83
-                } else {
-                    1.0
-                }
-            }
-
-            // Songs Compilation [Marathon]
-            2403677 => 0.85,
-
-            // Songs Compilation [Remembrance]
-            2174272 => 0.85,
-
-            // Apocalypse 1992 [Universal Annihilation]
-            2382377 => 0.85,
-
-            _ => 1.0,
-        };
 
         OsuPerformanceAttributes {
             difficulty: self.attributes.unwrap(),
