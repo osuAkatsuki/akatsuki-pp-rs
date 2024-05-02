@@ -109,4 +109,17 @@ impl Skill {
     fn strain_decay(&self, ms: f32) -> f32 {
         self.strain_decay_base().powf(ms / 1000.0)
     }
+
+    pub(crate) fn relevant_note_count(&self) -> f32 {
+        self.object_strains
+            .iter()
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+            .copied()
+            .filter(|&n| n > 0.0)
+            .map_or(0.0, |max_strain| {
+                self.object_strains.iter().fold(0.0, |sum, strain| {
+                    sum + (1.0 + (-(strain / max_strain * 12.0 - 6.0)).exp()).recip()
+                })
+            })
+    }
 }

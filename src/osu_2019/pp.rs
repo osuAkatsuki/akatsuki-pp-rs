@@ -401,8 +401,8 @@ impl<'m> OsuPP<'m> {
         }
 
         // Scale with accuracy
-        aim_value *= 0.3 + self.acc.unwrap() / 2.0;
-        aim_value *= 0.98 + attributes.od as f32 * attributes.od as f32 / 2500.0;
+        aim_value *= self.acc.unwrap().powf(3.0);
+        aim_value *= (0.98 + attributes.od as f32 * attributes.od as f32 / 2500.0).powf(1.5);
 
         aim_value
     }
@@ -445,16 +445,30 @@ impl<'m> OsuPP<'m> {
             speed_value *= 1.0 + 0.05 * (11.0 - attributes.ar) as f32;
         }
 
-        // Scaling the speed value with accuracy and OD
-        speed_value *= (0.93 + attributes.od as f32 * attributes.od as f32 / 750.0)
-            * self
-                .acc
-                .unwrap()
-                .powf((14.5 - attributes.od.max(8.0) as f32) / 2.0);
+        // Calculate accuracy assuming the worst case scenario
+        let n300 = self.n300.unwrap_or(0) as f32;
+        let n100 = self.n100.unwrap_or(0) as f32;
+        let n50 = self.n50.unwrap_or(0) as f32;
 
-        speed_value *= 0.98_f32.powf(match (self.n50.unwrap() as f32) < total_hits / 500.0 {
+        let relevant_total_diff = total_hits - attributes.speed_note_count;
+        let relevant_count_great = (n300 - relevant_total_diff).max(0.0);
+        let relevant_count_ok = (n100 - (relevant_total_diff - n300).max(0.0)).max(0.0);
+        let relevant_count_meh = (n50 - (relevant_total_diff - n300 - n100).max(0.0)).max(0.0);
+        let relevant_accuracy = if attributes.speed_note_count != 0.0 {
+            (relevant_count_great * 6.0 + relevant_count_ok * 2.0 + relevant_count_meh)
+                / (attributes.speed_note_count * 6.0)
+        } else {
+            0.0
+        };
+
+        // Scaling the speed value with accuracy and OD
+        speed_value *= (0.95 + attributes.od as f32 * attributes.od as f32 / 750.0)
+            * (self.acc.unwrap() + relevant_accuracy / 2.0)
+                .powf((14.5 - (attributes.od as f32).max(8.0)) / 2.0);
+
+        speed_value *= 0.99_f32.powf(match (self.n50.unwrap() as f32) < total_hits / 500.0 {
             true => 0.0,
-            false => self.n50.unwrap() as f32 - total_hits / 500.0,
+            false => n50 - total_hits / 500.0,
         });
 
         speed_value

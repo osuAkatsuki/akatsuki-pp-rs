@@ -137,6 +137,7 @@ pub fn stars(map: &Beatmap, mods: u32, passed_objects: Option<usize>) -> OsuDiff
     diff_attributes.aim_difficult_strain_count = aim_difficult_strain_count;
     diff_attributes.speed_difficult_strain_count = speed_difficult_strain_count;
     diff_attributes.n_sliders = map.n_sliders as usize;
+    diff_attributes.speed_note_count = speed.relevant_note_count();
 
     diff_attributes
 }
@@ -155,6 +156,7 @@ pub struct OsuDifficultyAttributes {
     pub max_combo: usize,
     pub aim_difficult_strain_count: f64,
     pub speed_difficult_strain_count: f64,
+    pub speed_note_count: f32,
 }
 
 #[derive(Clone, Debug)]
