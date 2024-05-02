@@ -72,16 +72,13 @@ impl Skill {
         difficulty
     }
 
-    pub(crate) fn count_difficult_strains(&mut self) -> f64 {
-        let top_strain = self
-            .object_strains
-            .iter()
-            .fold(f64::NEG_INFINITY, |prev, curr| prev.max(*curr as f64));
+    pub(crate) fn count_difficult_strains(&mut self) -> f32 {
+        let single_strain = self.difficulty_value() / 10.0;
 
         self.object_strains
             .iter()
-            .map(|strain| (strain / top_strain as f32).powi(4))
-            .sum::<f32>() as f64
+            .map(|strain| 1.1 / (1.0 + (-10.0 * (strain / single_strain - 0.88)).exp()))
+            .sum::<f32>()
     }
 
     #[inline]

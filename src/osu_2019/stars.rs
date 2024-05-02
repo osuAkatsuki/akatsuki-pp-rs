@@ -155,8 +155,8 @@ pub struct OsuDifficultyAttributes {
     pub n_spinners: usize,
     pub stars: f64,
     pub max_combo: usize,
-    pub aim_difficult_strain_count: f64,
-    pub speed_difficult_strain_count: f64,
+    pub aim_difficult_strain_count: f32,
+    pub speed_difficult_strain_count: f32,
 }
 
 #[derive(Clone, Debug)]
