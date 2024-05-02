@@ -402,7 +402,7 @@ impl<'m> OsuPP<'m> {
 
         // Scale with accuracy
         aim_value *= self.acc.unwrap().powf(3.0);
-        aim_value *= (0.98 + attributes.od as f32 * attributes.od as f32 / 2500.0).powf(1.5);
+        aim_value *= 0.98 + attributes.od as f32 * attributes.od as f32 / 2500.0;
 
         aim_value
     }
@@ -463,8 +463,8 @@ impl<'m> OsuPP<'m> {
 
         // Scaling the speed value with accuracy and OD
         speed_value *= (0.95 + attributes.od as f32 * attributes.od as f32 / 750.0)
-            * (self.acc.unwrap() + relevant_accuracy / 2.0)
-                .powf((14.5 - (attributes.od as f32).max(8.0)) / 2.0);
+            * ((self.acc.unwrap() + relevant_accuracy) / 2.0)
+                .powf((14.5 - attributes.od.max(8.0) as f32) / 2.0);
 
         speed_value *= 0.99_f32.powf(match (self.n50.unwrap() as f32) < total_hits / 500.0 {
             true => 0.0,
