@@ -19,6 +19,8 @@ pub(crate) struct Skill {
 
     prev_time: Option<f32>,
     pub(crate) object_strains: Vec<f32>,
+
+    difficulty: f32,
 }
 
 impl Skill {
@@ -33,6 +35,8 @@ impl Skill {
 
             prev_time: None,
             object_strains: Vec::new(),
+
+            difficulty: 0.0,
         }
     }
 
@@ -69,11 +73,13 @@ impl Skill {
             weight *= DECAY_WEIGHT;
         }
 
+        self.difficulty = difficulty;
+
         difficulty
     }
 
     pub(crate) fn count_difficult_strains(&mut self) -> f32 {
-        let single_strain = self.difficulty_value() / 10.0;
+        let single_strain = self.difficulty / 10.0;
 
         self.object_strains
             .iter()

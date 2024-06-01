@@ -515,7 +515,7 @@ impl<'m> OsuPP<'m> {
         effective_miss_count: f32,
         difficult_strain_count: f32,
     ) -> f32 {
-        0.94 / ((effective_miss_count / (2.0 * difficult_strain_count.sqrt())) + 1.0)
+        0.96 / ((effective_miss_count / (4.0 * difficult_strain_count.ln().powf(0.94))) + 1.0)
     }
 
     #[inline]
