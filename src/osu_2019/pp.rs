@@ -246,11 +246,6 @@ impl<'m> OsuPP<'m> {
 
         let effective_miss_count = self.calculate_effective_miss_count();
 
-        // NF penalty
-        if self.mods.nf() {
-            multiplier *= 0.9_f32.max(1.0 - 0.2 * effective_miss_count);
-        }
-
         // SO penalty
         if self.mods.so() {
             multiplier *=
@@ -300,51 +295,52 @@ impl<'m> OsuPP<'m> {
 
         let mut pp = (aim_factor + speed_factor + acc_factor).powf(1.0 / 1.1) * multiplier;
 
-        if self.mods.rx() {
-            if self.mods.dt() && self.mods.hr() {
-                pp *= 1.025;
-            }
-
-            if self.map.creator == "ParkourWizard" {
-                pp *= 0.9;
-            }
-
-            pp *= match self.map.beatmap_id {
-                // Louder than steel [ok this is epic]
-                1808605 => 0.85,
-
-                // over the top [Above the stars]
-                1821147 => 0.70,
-                
-                // Ascension to Heaven [The Gates of Heaven]
-                1849420 => 0.70,
-
-                // Just press F [Parkour's ok this is epic]
-                1844776 => 0.64,
-
-                // Hardawre Store [skyapple mode]
-                1777768 => 0.90,
-
-                // HONESTY [RIGHTEOUSNESS OF MORALITY]
-                2079597 => 0.90,
-
-                // Akatsuki compilation [ok this is akatsuki]
-                1962833 => {
-                    pp *= 0.885;
-
-                    if self.mods.dt() {
-                        0.83
-                    } else {
-                        1.0
-                    }
-                }
-
-                // Songs Compilation [Marathon]
-                2403677 => 0.85,
-
-                _ => 1.0,
-            }
+        if self.mods.dt() && self.mods.hr() {
+            pp *= 1.025;
         }
+        
+        if self.map.creator == "gwb" || self.map.creator == "Plasma" || self.map.creator == "ParkourWizard" {
+            pp *= 0.9;
+        }
+        
+        pp *= match self.map.beatmap_id {
+            // Louder than steel [ok this is epic]
+            1808605 => 0.85,
+        
+            // over the top [Above the stars]
+            1821147 => 0.70,
+        
+            // Just press F [Parkour's ok this is epic]
+            1844776 => 0.64,
+        
+            // Hardware Store [skyapple mode]
+            1777768 => 0.90,
+        
+            // Akatsuki compilation [ok this is akatsuki]
+            1962833 => {
+                pp *= 0.885;
+        
+                if self.mods.dt() {
+                    0.83
+                } else {
+                    1.0
+                }
+            }
+        
+            // Songs Compilation [Marathon]
+            2403677 => 0.85,
+        
+            // Songs Compilation [Remembrance]
+            2174272 => 0.85,
+        
+            // Apocalypse 1992 [Universal Annihilation]
+            2382377 => 0.85,
+
+            // Misogiharae no Kamiumi wa Notamai, Magabarai no Shokuzai wa Chikau. [Goofy (ft. Hoshino)]
+            4251768 => 0.75,
+        
+            _ => 1.0,
+        };
 
         OsuPerformanceAttributes {
             difficulty: self.attributes.unwrap(),
@@ -441,6 +437,11 @@ impl<'m> OsuPP<'m> {
             }
 
             aim_value *= base_buff;
+        }
+
+        // Precision buff (reading)
+        if attributes.cs > 5.58 {
+            aim_value *= ((attributes.cs as f32 - 5.46).powf(1.8) + 1.0).powf(0.03);
         }
 
         // Scale with accuracy

@@ -14,6 +14,7 @@ pub(crate) struct Speed {
     object_strains: Vec<f64>,
     hit_window: f64,
     mods: u32,
+    difficulty: f64,
 }
 
 impl Speed {
@@ -30,6 +31,7 @@ impl Speed {
             object_strains: Vec::new(),
             hit_window,
             mods,
+            difficulty: 0.0,
         }
     }
 
@@ -121,6 +123,18 @@ impl StrainSkill for Speed {
 impl OsuStrainSkill for Speed {
     const REDUCED_SECTION_COUNT: usize = 5;
     const DIFFICULTY_MULTIPLER: f64 = 1.04;
+
+    fn strains(&self) -> &Vec<f64> {
+        &self.object_strains
+    }
+
+    fn set_raw_difficulty_value(&mut self, value: f64) {
+        self.difficulty = value;
+    }
+
+    fn get_raw_difficulty_value(&self) -> f64 {
+        self.difficulty
+    }
 }
 
 struct SpeedEvaluator;
