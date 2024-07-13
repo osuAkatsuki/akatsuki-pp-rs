@@ -77,7 +77,7 @@ impl SkillKind {
                     speed_bonus += exp_base * exp_base;
                 }
 
-                (0.3 + speed_bonus * (dist / SINGLE_SPACING_TRESHOLD).powf(3.5))
+                (0.15 + speed_bonus * (dist / SINGLE_SPACING_TRESHOLD).powf(3.5))
                     / current.strain_time
             }
         }
