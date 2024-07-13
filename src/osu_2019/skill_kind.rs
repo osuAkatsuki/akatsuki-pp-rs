@@ -5,8 +5,8 @@ const SPEED_ANGLE_BONUS_BEGIN: f32 = 5.0 * std::f32::consts::FRAC_PI_6;
 const PI_OVER_4: f32 = std::f32::consts::FRAC_PI_4;
 const PI_OVER_2: f32 = std::f32::consts::FRAC_PI_2;
 
-const MIN_SPEED_BONUS: f32 = 75.0;
-const MAX_SPEED_BONUS: f32 = 45.0;
+const MIN_SPEED_BONUS: f32 = 85.0;
+const MAX_SPEED_BONUS: f32 = 55.0;
 const SPEED_BALANCING_FACTOR: f32 = 40.0;
 
 const AIM_ANGLE_BONUS_BEGIN: f32 = std::f32::consts::FRAC_PI_3;
@@ -77,7 +77,7 @@ impl SkillKind {
                     speed_bonus += exp_base * exp_base;
                 }
 
-                (0.15 + speed_bonus * (dist / SINGLE_SPACING_TRESHOLD).powf(3.5))
+                (0.05 + speed_bonus * (dist / SINGLE_SPACING_TRESHOLD).powf(3.5))
                     / current.strain_time
             }
         }
