@@ -48,8 +48,19 @@ impl SkillKind {
                 let dist_exp =
                     jump_dist_exp + travel_dist_exp + (travel_dist_exp * jump_dist_exp).sqrt();
 
-                (result + dist_exp / (current.strain_time).max(TIMING_THRESHOLD))
-                    .max(dist_exp / current.strain_time)
+                let mut aim_strain = (result
+                    + dist_exp / (current.strain_time).max(TIMING_THRESHOLD))
+                .max(dist_exp / current.strain_time);
+
+                let flow_bonus = (current.prev.and_then(|p| Some(p.0)).unwrap_or(0.0)
+                    / SINGLE_SPACING_TRESHOLD)
+                    .powf(3.5);
+
+                if flow_bonus < 1.0 {
+                    aim_strain *= 0.5 + 0.5 * flow_bonus.sqrt();
+                }
+
+                aim_strain
             }
             Self::Speed => {
                 if current.base.is_spinner() {
