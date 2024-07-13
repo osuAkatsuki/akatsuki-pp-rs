@@ -77,28 +77,7 @@ impl SkillKind {
                     speed_bonus += exp_base * exp_base;
                 }
 
-                let mut angle_bonus = 1.0;
-
-                if let Some(angle) = current.angle.filter(|a| *a < SPEED_ANGLE_BONUS_BEGIN) {
-                    let exp_base = (1.5 * (SPEED_ANGLE_BONUS_BEGIN - angle)).sin();
-                    angle_bonus = 1.0 + exp_base * exp_base / 3.57;
-
-                    if angle < PI_OVER_2 {
-                        angle_bonus = 1.28;
-
-                        if dist < 90.0 && angle < PI_OVER_4 {
-                            angle_bonus += (1.0 - angle_bonus) * ((90.0 - dist) / 10.0).min(1.0);
-                        } else if dist < 90.0 {
-                            angle_bonus += (1.0 - angle_bonus)
-                                * ((90.0 - dist) / 10.0).min(1.0)
-                                * ((PI_OVER_2 - angle) / PI_OVER_4).sin();
-                        }
-                    }
-                }
-
-                (1.0 + (speed_bonus - 1.0) * 0.75)
-                    * angle_bonus
-                    * (0.7 + speed_bonus * (dist / SINGLE_SPACING_TRESHOLD).powf(3.5))
+                (0.95 + speed_bonus * (dist / SINGLE_SPACING_TRESHOLD).powf(3.5))
                     / current.strain_time
             }
         }
