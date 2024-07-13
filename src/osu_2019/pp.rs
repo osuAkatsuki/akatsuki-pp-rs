@@ -381,6 +381,8 @@ impl<'m> OsuPP<'m> {
 
         // FL bonus
         if self.mods.fl() {
+            aim_value *= self.calculate_combo_scaling_factor();
+
             aim_value *= 1.0
                 + 0.3 * (total_hits / 200.0).min(1.0)
                 + (total_hits > 200.0) as u8 as f32
@@ -529,6 +531,18 @@ impl<'m> OsuPP<'m> {
 
         combo_based_miss_count = combo_based_miss_count.min(n100 + n50 + self.n_misses as f32);
         combo_based_miss_count.max(self.n_misses as f32)
+    }
+
+    #[inline]
+    fn calculate_combo_scaling_factor(&self) -> f32 {
+        let attributes = self.attributes.as_ref().unwrap();
+        let combo = self.combo.unwrap_or(attributes.max_combo) as f32;
+
+        if combo <= 0.0 {
+            1.0
+        } else {
+            (combo.powf(0.8) / (attributes.max_combo as f32).powf(0.8)).min(1.0)
+        }
     }
 }
 
