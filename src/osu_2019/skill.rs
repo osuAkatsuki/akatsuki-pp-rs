@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 const SPEED_SKILL_MULTIPLIER: f32 = 1400.0;
 const SPEED_STRAIN_DECAY_BASE: f32 = 0.3;
 
-const AIM_SKILL_MULTIPLIER: f32 = 26.25;
+const AIM_SKILL_MULTIPLIER: f32 = 27.25;
 const AIM_STRAIN_DECAY_BASE: f32 = 0.15;
 
 const DECAY_WEIGHT: f32 = 0.9;
