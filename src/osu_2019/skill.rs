@@ -2,7 +2,7 @@ use super::{DifficultyObject, SkillKind};
 
 use std::cmp::Ordering;
 
-const SPEED_SKILL_MULTIPLIER: f32 = 900.0;
+const SPEED_SKILL_MULTIPLIER: f32 = 1200.0;
 const SPEED_STRAIN_DECAY_BASE: f32 = 0.3;
 
 const AIM_SKILL_MULTIPLIER: f32 = 26.25;
