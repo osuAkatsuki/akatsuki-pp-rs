@@ -98,7 +98,7 @@ impl SkillKind {
 
                 (1.0 + (speed_bonus - 1.0) * 0.75)
                     * angle_bonus
-                    * (0.95 + speed_bonus * (dist / SINGLE_SPACING_TRESHOLD).powf(3.5))
+                    * (0.7 + speed_bonus * (dist / SINGLE_SPACING_TRESHOLD).powf(3.5))
                     / current.strain_time
             }
         }

@@ -253,20 +253,8 @@ impl<'m> OsuPP<'m> {
         }
 
         let aim_value = self.compute_aim_value(total_hits, effective_miss_count);
-        let mut speed_value = self.compute_speed_value(total_hits, effective_miss_count);
+        let speed_value = self.compute_speed_value(total_hits, effective_miss_count);
         let acc_value = self.compute_accuracy_value(total_hits);
-
-        let mut acc_depression = 1.0;
-
-        let difficulty = self.attributes.as_ref().unwrap();
-        let streams_nerf =
-            ((difficulty.aim_strain / difficulty.speed_strain) * 100.0).round() / 100.0;
-
-        if streams_nerf < 1.09 {
-            let acc_factor = (1.0 - self.acc.unwrap()).abs();
-            acc_depression = (0.1 - acc_factor).max(0.01);
-            speed_value *= acc_depression;
-        }
 
         let nodt_bonus = match !self.mods.change_speed() {
             true => 1.02,
@@ -274,7 +262,7 @@ impl<'m> OsuPP<'m> {
         };
 
         let mut pp = (aim_value.powf(1.185 * nodt_bonus)
-            + speed_value.powf(0.83 * acc_depression)
+            + speed_value.powf(0.83)
             + acc_value.powf(1.14 * nodt_bonus))
         .powf(1.0 / 1.1)
             * multiplier;
