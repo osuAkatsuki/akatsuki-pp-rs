@@ -264,7 +264,7 @@ impl<'m> OsuPP<'m> {
 
         if streams_nerf < 1.09 {
             let acc_factor = (1.0 - self.acc.unwrap()).abs();
-            acc_depression = (0.3 - acc_factor).max(0.01);
+            acc_depression = (0.1 - acc_factor).max(0.01);
             speed_value *= acc_depression;
         }
 
