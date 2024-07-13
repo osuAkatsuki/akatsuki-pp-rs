@@ -254,7 +254,6 @@ impl<'m> OsuPP<'m> {
 
         let mut aim_value = self.compute_aim_value(total_hits, effective_miss_count);
         let speed_value = self.compute_speed_value(total_hits, effective_miss_count);
-        let acc_value = self.compute_accuracy_value(total_hits);
 
         let mut acc_depression = 1.0;
 
@@ -276,10 +275,8 @@ impl<'m> OsuPP<'m> {
             false => 1.0,
         };
 
-        let mut pp = (aim_value.powf(1.185 * nodt_bonus)
-            + speed_value.powf(0.83 * acc_depression)
-            + acc_value.powf(1.14 * nodt_bonus))
-        .powf(1.0 / 1.1)
+        let mut pp = (aim_value.powf(1.185 * nodt_bonus) + speed_value.powf(0.83 * acc_depression))
+            .powf(1.0 / 1.1)
             * multiplier;
 
         if self.mods.dt() && self.mods.hr() {
@@ -463,36 +460,6 @@ impl<'m> OsuPP<'m> {
         });
 
         speed_value
-    }
-
-    fn compute_accuracy_value(&self, total_hits: f32) -> f32 {
-        let attributes = self.attributes.as_ref().unwrap();
-        let n_circles = attributes.n_circles as f32;
-        let n300 = self.n300.unwrap_or(0) as f32;
-        let n100 = self.n100.unwrap_or(0) as f32;
-        let n50 = self.n50.unwrap_or(0) as f32;
-
-        let better_acc_percentage = (n_circles > 0.0) as u8 as f32
-            * (((n300 - (total_hits - n_circles)) * 6.0 + n100 * 2.0 + n50) / (n_circles * 6.0))
-                .max(0.0);
-
-        let mut acc_value =
-            1.52163_f32.powf(attributes.od as f32) * better_acc_percentage.powi(24) * 2.83;
-
-        // Bonus for many hitcircles
-        acc_value *= ((n_circles as f32 / 1000.0).powf(0.3)).min(1.15);
-
-        // HD bonus
-        if self.mods.hd() {
-            acc_value *= 1.08;
-        }
-
-        // FL bonus
-        if self.mods.fl() {
-            acc_value *= 1.02;
-        }
-
-        acc_value
     }
 
     #[inline]
