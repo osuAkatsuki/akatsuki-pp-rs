@@ -252,8 +252,8 @@ impl<'m> OsuPP<'m> {
                 1.0 - (self.attributes.as_ref().unwrap().n_spinners as f32 / total_hits).powf(0.85);
         }
 
-        let mut aim_value = self.compute_aim_value(total_hits, effective_miss_count);
-        let speed_value = self.compute_speed_value(total_hits, effective_miss_count);
+        let aim_value = self.compute_aim_value(total_hits, effective_miss_count);
+        let mut speed_value = self.compute_speed_value(total_hits, effective_miss_count);
         let acc_value = self.compute_accuracy_value(total_hits);
 
         let mut acc_depression = 1.0;
@@ -267,7 +267,7 @@ impl<'m> OsuPP<'m> {
             acc_depression = (0.86 - acc_factor).max(0.5);
 
             if acc_depression > 0.0 {
-                aim_value *= acc_depression;
+                speed_value *= acc_depression;
             }
         }
 
