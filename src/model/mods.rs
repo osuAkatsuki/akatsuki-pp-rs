@@ -179,6 +179,7 @@ impl_has_mod! {
     ht: + HalfTime ["HalfTime"],
     ap: + Autopilot ["Autopilot"],
     bl: - Blinds ["Blinds"],
+    tc: - Traceable ["Traceable"],
 }
 
 impl Default for GameMods {
