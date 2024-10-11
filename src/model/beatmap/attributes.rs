@@ -382,6 +382,8 @@ impl<M> From<&Converted<'_, M>> for BeatmapAttributesBuilder {
     }
 }
 
+// False positive? Value looks consumed to me...
+#[allow(clippy::needless_pass_by_value)]
 fn difficulty_range(difficulty: f64, windows: GameModeHitWindows) -> f64 {
     let GameModeHitWindows { min, avg: mid, max } = windows;
 
