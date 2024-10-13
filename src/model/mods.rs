@@ -174,6 +174,9 @@ impl_has_mod! {
     rx: + Relax ["Relax"],
     fl: + Flashlight ["Flashlight"],
     so: + SpunOut ["SpunOut"],
+    dt: + DoubleTime ["DoubleTime"],
+    nc: + Nightcore ["Nightcore"],
+    ht: + HalfTime ["HalfTime"],
     bl: - Blinds ["Blinds"],
 }
 
