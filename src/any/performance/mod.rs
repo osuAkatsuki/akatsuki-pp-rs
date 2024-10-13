@@ -2,7 +2,7 @@ use rosu_map::section::general::GameMode;
 
 use crate::{
     catch::CatchPerformance, mania::ManiaPerformance, osu::OsuPerformance, taiko::TaikoPerformance,
-    Difficulty,
+    Difficulty, GameMods,
 };
 
 use self::into::IntoPerformance;
@@ -108,7 +108,7 @@ impl<'map> Performance<'map> {
     /// - [`&rosu_mods::GameModsIntermode`](rosu_mods::GameModsIntermode)
     ///
     /// See <https://github.com/ppy/osu-api/wiki#mods>
-    pub fn mods(self, mods: u32) -> Self {
+    pub fn mods(self, mods: impl Into<GameMods>) -> Self {
         match self {
             Self::Osu(o) => Self::Osu(o.mods(mods)),
             Self::Taiko(t) => Self::Taiko(t.mods(mods)),
