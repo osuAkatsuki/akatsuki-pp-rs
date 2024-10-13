@@ -7,6 +7,7 @@ use crate::{
     },
     osu::difficulty::object::OsuDifficultyObject,
     util::strains_vec::StrainsVec,
+    GameMods,
 };
 
 use super::strain::OsuStrainSkill;
@@ -23,17 +24,19 @@ pub struct Speed {
     curr_rhythm: f64,
     object_strains: Vec<f64>,
     hit_window: f64,
+    has_autopilot_mod: bool,
     inner: OsuStrainSkill,
 }
 
 impl Speed {
-    pub fn new(hit_window: f64) -> Self {
+    pub fn new(hit_window: f64, mods: &GameMods) -> Self {
         Self {
             curr_strain: 0.0,
             curr_rhythm: 0.0,
             // mean=406.72 | median=307
             object_strains: Vec::with_capacity(256),
             hit_window,
+            has_autopilot_mod: mods.ap(),
             inner: OsuStrainSkill::default(),
         }
     }
@@ -124,9 +127,12 @@ impl<'a> Skill<'a, Speed> {
 
     fn strain_value_at(&mut self, curr: &'a OsuDifficultyObject<'a>) -> f64 {
         self.inner.curr_strain *= strain_decay(curr.strain_time, STRAIN_DECAY_BASE);
-        self.inner.curr_strain +=
-            SpeedEvaluator::evaluate_diff_of(curr, self.diff_objects, self.inner.hit_window)
-                * SKILL_MULTIPLIER;
+        self.inner.curr_strain += SpeedEvaluator::evaluate_diff_of(
+            curr,
+            self.diff_objects,
+            self.inner.hit_window,
+            self.inner.has_autopilot_mod,
+        ) * SKILL_MULTIPLIER;
         self.inner.curr_rhythm =
             RhythmEvaluator::evaluate_diff_of(curr, self.diff_objects, self.inner.hit_window);
 
@@ -148,6 +154,7 @@ impl SpeedEvaluator {
         curr: &'a OsuDifficultyObject<'a>,
         diff_objects: &'a [OsuDifficultyObject<'a>],
         hit_window: f64,
+        has_autopilot_mod: bool,
     ) -> f64 {
         if curr.base.is_spinner() {
             return 0.0;
@@ -185,7 +192,11 @@ impl SpeedEvaluator {
         };
 
         let travel_dist = osu_prev_obj.map_or(0.0, |obj| obj.travel_dist);
-        let dist = Self::SINGLE_SPACING_THRESHOLD.min(travel_dist + osu_curr_obj.min_jump_dist);
+        let dist = if has_autopilot_mod {
+            0.0
+        } else {
+            Self::SINGLE_SPACING_THRESHOLD.min(travel_dist + osu_curr_obj.min_jump_dist)
+        };
 
         (speed_bonus + speed_bonus * (dist / Self::SINGLE_SPACING_THRESHOLD).powf(3.5))
             * doubletapness
