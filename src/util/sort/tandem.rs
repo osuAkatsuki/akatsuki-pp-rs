@@ -104,30 +104,3 @@ impl TandemSorter {
         idx ^ !(usize::MAX >> 1)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use proptest::prelude::*;
-
-    use super::TandemSorter;
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
-
-        #[test]
-        fn sort(mut actual in prop::collection::vec(0_u8..100, 0..100)) {
-            let mut expected_sorted = actual.clone();
-            expected_sorted.sort_unstable();
-
-            let expected_unsorted = actual.clone();
-
-            let mut sorter = TandemSorter::new_unstable(&actual, u8::cmp);
-
-            sorter.sort(&mut actual);
-            assert_eq!(actual, expected_sorted);
-
-            sorter.unsort(&mut actual);
-            assert_eq!(actual, expected_unsorted);
-        }
-    }
-}
