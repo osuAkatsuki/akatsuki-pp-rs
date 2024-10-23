@@ -48,26 +48,12 @@ impl<T, const N: usize> LimitedQueue<T, N> {
         self.len += usize::from(self.len < N);
     }
 
-    #[cfg(test)]
-    pub const fn is_empty(&self) -> bool {
-        self.len == 0
-    }
-
     pub const fn is_full(&self) -> bool {
         self.len == N
     }
 
     pub const fn len(&self) -> usize {
         self.len
-    }
-
-    #[cfg(test)]
-    pub const fn last(&self) -> Option<&T> {
-        if self.is_empty() {
-            None
-        } else {
-            Some(&self.queue[self.end])
-        }
     }
 
     pub fn as_slices(&self) -> (&[T], &[T]) {
