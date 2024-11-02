@@ -378,17 +378,6 @@ impl<'m> OsuPP<'m> {
                 + (total_hits > 500.0) as u8 as f32 * (total_hits - 500.0) / 1600.0;
         }
 
-        // EZ bonus
-        if self.mods.ez() {
-            let mut base_buff = 1.08_f32;
-
-            if attributes.ar <= 8.0 {
-                base_buff += (7.0 - attributes.ar as f32) / 100.0;
-            }
-
-            aim_value *= base_buff;
-        }
-
         // Scale with accuracy
         aim_value *= 0.3 + self.acc.unwrap() / 2.0;
         aim_value *= 0.98 + attributes.od as f32 * attributes.od as f32 / 2500.0;
