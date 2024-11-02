@@ -415,19 +415,17 @@ impl<'m> OsuPP<'m> {
         }
 
         // AR bonus
-        if attributes.ar > 10.33 {
-            let mut ar_factor = if attributes.ar > 10.33 {
-                0.3 * (attributes.ar - 10.33)
-            } else {
-                0.0
-            };
+        let mut ar_factor = if attributes.ar > 10.33 {
+            0.3 * (attributes.ar - 10.33)
+        } else {
+            0.0
+        };
 
-            if attributes.ar < 8.0 {
-                ar_factor = 0.025 * (8.0 - attributes.ar);
-            }
-
-            speed_value *= 1.0 + ar_factor as f32 * len_bonus;
+        if attributes.ar < 8.0 {
+            ar_factor = 0.025 * (8.0 - attributes.ar);
         }
+
+        speed_value *= 1.0 + ar_factor as f32 * len_bonus;
 
         // HD bonus
         if self.mods.hd() {
