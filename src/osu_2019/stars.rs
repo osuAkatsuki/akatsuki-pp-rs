@@ -126,11 +126,15 @@ pub fn stars(map: &Beatmap, mods: GameMods) -> OsuDifficultyAttributes {
     aim.save_current_peak();
     speed.save_current_peak();
 
-    let aim_strain = aim.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
+    let mut aim_strain = aim.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
     let speed_strain = speed.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
 
     let aim_difficult_strain_count = aim.count_difficult_strains();
     let speed_difficult_strain_count = speed.count_difficult_strains();
+
+    if mods.td() {
+        aim_strain = aim_strain.powf(0.8);
+    }
 
     let stars = aim_strain + speed_strain + (aim_strain - speed_strain).abs() / 2.0;
 
