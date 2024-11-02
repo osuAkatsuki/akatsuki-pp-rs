@@ -20,6 +20,7 @@ pub enum Performance<'map> {
     Taiko(TaikoPerformance<'map>),
     Catch(CatchPerformance<'map>),
     Mania(ManiaPerformance<'map>),
+    OsuRelax(crate::osu_2019::OsuPerformance<'map>),
 }
 
 impl<'map> Performance<'map> {
@@ -56,6 +57,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => PerformanceAttributes::Taiko(t.calculate()),
             Self::Catch(f) => PerformanceAttributes::Catch(f.calculate()),
             Self::Mania(m) => PerformanceAttributes::Mania(m.calculate()),
+            Self::OsuRelax(or) => PerformanceAttributes::OsuRelax(or.calculate()),
         }
     }
 
@@ -114,6 +116,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.mods(mods)),
             Self::Catch(f) => Self::Catch(f.mods(mods)),
             Self::Mania(m) => Self::Mania(m.mods(mods)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.mods(mods)),
         }
     }
 
@@ -124,6 +127,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.difficulty(difficulty)),
             Self::Catch(f) => Self::Catch(f.difficulty(difficulty)),
             Self::Mania(m) => Self::Mania(m.difficulty(difficulty)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.difficulty(difficulty)),
         }
     }
 
@@ -140,6 +144,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.passed_objects(passed_objects)),
             Self::Catch(f) => Self::Catch(f.passed_objects(passed_objects)),
             Self::Mania(m) => Self::Mania(m.passed_objects(passed_objects)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.passed_objects(passed_objects)),
         }
     }
 
@@ -157,6 +162,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.clock_rate(clock_rate)),
             Self::Catch(f) => Self::Catch(f.clock_rate(clock_rate)),
             Self::Mania(m) => Self::Mania(m.clock_rate(clock_rate)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.clock_rate(clock_rate)),
         }
     }
 
@@ -175,6 +181,7 @@ impl<'map> Performance<'map> {
         match self {
             Self::Osu(o) => Self::Osu(o.ar(ar, with_mods)),
             Self::Catch(c) => Self::Catch(c.ar(ar, with_mods)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.ar(ar, with_mods)),
             Self::Taiko(_) | Self::Mania(_) => self,
         }
     }
@@ -194,6 +201,7 @@ impl<'map> Performance<'map> {
         match self {
             Self::Osu(o) => Self::Osu(o.cs(cs, with_mods)),
             Self::Catch(c) => Self::Catch(c.cs(cs, with_mods)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.cs(cs, with_mods)),
             Self::Taiko(_) | Self::Mania(_) => self,
         }
     }
@@ -213,6 +221,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.hp(hp, with_mods)),
             Self::Catch(c) => Self::Catch(c.hp(hp, with_mods)),
             Self::Mania(m) => Self::Mania(m.hp(hp, with_mods)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.hp(hp, with_mods)),
         }
     }
 
@@ -231,6 +240,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.od(od, with_mods)),
             Self::Catch(c) => Self::Catch(c.od(od, with_mods)),
             Self::Mania(m) => Self::Mania(m.od(od, with_mods)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.od(od, with_mods)),
         }
     }
 
@@ -252,6 +262,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.state(state.into())),
             Self::Catch(f) => Self::Catch(f.state(state.into())),
             Self::Mania(m) => Self::Mania(m.state(state.into())),
+            Self::OsuRelax(or) => Self::OsuRelax(or.state(state.into())),
         }
     }
 
@@ -262,6 +273,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.accuracy(acc)),
             Self::Catch(f) => Self::Catch(f.accuracy(acc)),
             Self::Mania(m) => Self::Mania(m.accuracy(acc)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.accuracy(acc)),
         }
     }
 
@@ -272,6 +284,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.misses(n_misses)),
             Self::Catch(f) => Self::Catch(f.misses(n_misses)),
             Self::Mania(m) => Self::Mania(m.misses(n_misses)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.misses(n_misses)),
         }
     }
 
@@ -283,6 +296,7 @@ impl<'map> Performance<'map> {
             Self::Osu(o) => Self::Osu(o.combo(combo)),
             Self::Taiko(t) => Self::Taiko(t.combo(combo)),
             Self::Catch(f) => Self::Catch(f.combo(combo)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.combo(combo)),
             Self::Mania(_) => self,
         }
     }
@@ -296,6 +310,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.hitresult_priority(priority)),
             Self::Catch(_) => self,
             Self::Mania(m) => Self::Mania(m.hitresult_priority(priority)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.hitresult_priority(priority)),
         }
     }
 
@@ -311,6 +326,8 @@ impl<'map> Performance<'map> {
     pub fn lazer(self, lazer: bool) -> Self {
         if let Self::Osu(osu) = self {
             Self::Osu(osu.lazer(lazer))
+        } else if let Self::OsuRelax(osu_relax) = self {
+            Self::OsuRelax(osu_relax.lazer(lazer))
         } else {
             self
         }
@@ -323,6 +340,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.n300(n300)),
             Self::Catch(f) => Self::Catch(f.fruits(n300)),
             Self::Mania(m) => Self::Mania(m.n300(n300)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.n300(n300)),
         }
     }
 
@@ -333,6 +351,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => Self::Taiko(t.n100(n100)),
             Self::Catch(f) => Self::Catch(f.droplets(n100)),
             Self::Mania(m) => Self::Mania(m.n100(n100)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.n100(n100)),
         }
     }
 
@@ -345,6 +364,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(_) => self,
             Self::Catch(f) => Self::Catch(f.tiny_droplets(n50)),
             Self::Mania(m) => Self::Mania(m.n50(n50)),
+            Self::OsuRelax(or) => Self::OsuRelax(or.n50(n50)),
         }
     }
 
@@ -354,7 +374,7 @@ impl<'map> Performance<'map> {
     /// droplet misses and osu!mania for which it repesents the amount of n200.
     pub fn n_katu(self, n_katu: u32) -> Self {
         match self {
-            Self::Osu(_) | Self::Taiko(_) => self,
+            Self::Osu(_) | Self::Taiko(_) | Self::OsuRelax(_) => self,
             Self::Catch(f) => Self::Catch(f.tiny_droplet_misses(n_katu)),
             Self::Mania(m) => Self::Mania(m.n200(n_katu)),
         }
@@ -366,7 +386,7 @@ impl<'map> Performance<'map> {
     /// amount of n320.
     pub fn n_geki(self, n_geki: u32) -> Self {
         match self {
-            Self::Osu(_) | Self::Taiko(_) | Self::Catch(_) => self,
+            Self::Osu(_) | Self::Taiko(_) | Self::Catch(_) | Self::OsuRelax(_) => self,
             Self::Mania(m) => Self::Mania(m.n320(n_geki)),
         }
     }
@@ -378,6 +398,7 @@ impl<'map> Performance<'map> {
             Self::Taiko(t) => t.generate_state().into(),
             Self::Catch(f) => f.generate_state().into(),
             Self::Mania(m) => m.generate_state().into(),
+            Self::OsuRelax(or) => or.generate_state().into(),
         }
     }
 }

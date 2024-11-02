@@ -18,9 +18,9 @@ pub use self::{
 };
 
 mod attributes;
-mod convert;
-mod difficulty;
-mod object;
+pub(crate) mod convert;
+pub(crate) mod difficulty;
+pub(crate) mod object;
 mod performance;
 mod score_state;
 mod strains;

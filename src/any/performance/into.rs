@@ -111,6 +111,11 @@ impl_from_mode!(
         ManiaDifficultyAttributes,
         ManiaPerformanceAttributes
     },
+    osu_2019 {
+        OsuRelax,
+        OsuDifficultyAttributes,
+        OsuPerformanceAttributes
+    },
 );
 
 impl<'a> IntoPerformance<'a> for Beatmap {
@@ -141,6 +146,7 @@ impl<'a> IntoPerformance<'a> for DifficultyAttributes {
             Self::Taiko(attrs) => Performance::Taiko(attrs.into()),
             Self::Catch(attrs) => Performance::Catch(attrs.into()),
             Self::Mania(attrs) => Performance::Mania(attrs.into()),
+            Self::OsuRelax(attrs) => Performance::OsuRelax(attrs.into()),
         }
     }
 }
@@ -152,6 +158,7 @@ impl<'a> IntoPerformance<'a> for PerformanceAttributes {
             Self::Taiko(attrs) => Performance::Taiko(attrs.difficulty.into()),
             Self::Catch(attrs) => Performance::Catch(attrs.difficulty.into()),
             Self::Mania(attrs) => Performance::Mania(attrs.difficulty.into()),
+            Self::OsuRelax(attrs) => Performance::OsuRelax(attrs.difficulty.into()),
         }
     }
 }

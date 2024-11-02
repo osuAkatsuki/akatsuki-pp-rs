@@ -120,4 +120,9 @@ from_attrs!(
         ManiaDifficultyAttributes,
         ManiaPerformanceAttributes
     },
+    osu_2019 {
+        OsuRelax,
+        OsuDifficultyAttributes,
+        OsuPerformanceAttributes
+    },
 );

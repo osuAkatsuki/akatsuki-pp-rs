@@ -1,8 +1,5 @@
 use crate::{
-    catch::{CatchDifficultyAttributes, CatchPerformanceAttributes},
-    mania::{ManiaDifficultyAttributes, ManiaPerformanceAttributes},
-    osu::{OsuDifficultyAttributes, OsuPerformanceAttributes},
-    taiko::{TaikoDifficultyAttributes, TaikoPerformanceAttributes},
+    catch::{CatchDifficultyAttributes, CatchPerformanceAttributes}, mania::{ManiaDifficultyAttributes, ManiaPerformanceAttributes}, osu::{OsuDifficultyAttributes, OsuPerformanceAttributes}, osu_2019, taiko::{TaikoDifficultyAttributes, TaikoPerformanceAttributes}
 };
 
 use super::performance::{into::IntoPerformance, Performance};
@@ -18,6 +15,8 @@ pub enum DifficultyAttributes {
     Catch(CatchDifficultyAttributes),
     /// osu!mania difficulty calculation result.
     Mania(ManiaDifficultyAttributes),
+    /// osu!standard (relax) difficulty calculation result.
+    OsuRelax(osu_2019::OsuDifficultyAttributes),
 }
 
 impl DifficultyAttributes {
@@ -28,6 +27,7 @@ impl DifficultyAttributes {
             Self::Taiko(attrs) => attrs.stars,
             Self::Catch(attrs) => attrs.stars,
             Self::Mania(attrs) => attrs.stars,
+            Self::OsuRelax(attrs) => attrs.stars,
         }
     }
 
@@ -38,6 +38,7 @@ impl DifficultyAttributes {
             Self::Taiko(attrs) => attrs.max_combo,
             Self::Catch(attrs) => attrs.max_combo(),
             Self::Mania(attrs) => attrs.max_combo,
+            Self::OsuRelax(attrs) => attrs.max_combo,
         }
     }
 
@@ -58,6 +59,8 @@ pub enum PerformanceAttributes {
     Catch(CatchPerformanceAttributes),
     /// osu!mania performance calculation result.
     Mania(ManiaPerformanceAttributes),
+    /// osu!standard (relax) performance calculation result.
+    OsuRelax(osu_2019::OsuPerformanceAttributes),
 }
 
 impl PerformanceAttributes {
@@ -68,6 +71,7 @@ impl PerformanceAttributes {
             Self::Taiko(attrs) => attrs.pp,
             Self::Catch(attrs) => attrs.pp,
             Self::Mania(attrs) => attrs.pp,
+            Self::OsuRelax(attrs) => attrs.pp,
         }
     }
 
@@ -78,6 +82,7 @@ impl PerformanceAttributes {
             Self::Taiko(attrs) => attrs.stars(),
             Self::Catch(attrs) => attrs.stars(),
             Self::Mania(attrs) => attrs.stars(),
+            Self::OsuRelax(attrs) => attrs.difficulty.stars,
         }
     }
 
@@ -88,6 +93,7 @@ impl PerformanceAttributes {
             Self::Taiko(attrs) => DifficultyAttributes::Taiko(attrs.difficulty.clone()),
             Self::Catch(attrs) => DifficultyAttributes::Catch(attrs.difficulty.clone()),
             Self::Mania(attrs) => DifficultyAttributes::Mania(attrs.difficulty.clone()),
+            Self::OsuRelax(attrs) => DifficultyAttributes::OsuRelax(attrs.difficulty.clone()),
         }
     }
 
@@ -98,6 +104,7 @@ impl PerformanceAttributes {
             Self::Taiko(attrs) => attrs.difficulty.max_combo,
             Self::Catch(attrs) => attrs.difficulty.max_combo(),
             Self::Mania(attrs) => attrs.difficulty.max_combo,
+            Self::OsuRelax(attrs) => attrs.difficulty.max_combo,
         }
     }
 

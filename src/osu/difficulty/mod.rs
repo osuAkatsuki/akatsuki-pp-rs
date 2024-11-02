@@ -21,14 +21,14 @@ use self::skills::OsuSkills;
 use super::{attributes::OsuDifficultyAttributes, convert::OsuBeatmap};
 
 pub mod gradual;
-mod object;
+pub mod object;
 pub mod scaling_factor;
 pub mod skills;
 
 const DIFFICULTY_MULTIPLIER: f64 = 0.0675;
 
-const HD_FADE_IN_DURATION_MULTIPLIER: f64 = 0.4;
-const HD_FADE_OUT_DURATION_MULTIPLIER: f64 = 0.3;
+pub(crate) const HD_FADE_IN_DURATION_MULTIPLIER: f64 = 0.4;
+pub(crate) const HD_FADE_OUT_DURATION_MULTIPLIER: f64 = 0.3;
 
 pub fn difficulty(difficulty: &Difficulty, converted: &OsuBeatmap<'_>) -> OsuDifficultyAttributes {
     let DifficultyValues {
@@ -64,10 +64,10 @@ pub fn difficulty(difficulty: &Difficulty, converted: &OsuBeatmap<'_>) -> OsuDif
 }
 
 pub struct OsuDifficultySetup {
-    scaling_factor: ScalingFactor,
-    map_attrs: BeatmapAttributes,
-    attrs: OsuDifficultyAttributes,
-    time_preempt: f64,
+    pub(crate) scaling_factor: ScalingFactor,
+    pub(crate) map_attrs: BeatmapAttributes,
+    pub(crate) attrs: OsuDifficultyAttributes,
+    pub(crate) time_preempt: f64,
 }
 
 impl OsuDifficultySetup {
