@@ -232,7 +232,7 @@ impl<'m> OsuPP<'m> {
         self.assert_hitresults();
 
         let total_hits = self.total_hits() as f32;
-        let mut multiplier = 1.09;
+        let mut multiplier = 0.882;
 
         let effective_miss_count = self.calculate_effective_miss_count();
 
@@ -271,10 +271,6 @@ impl<'m> OsuPP<'m> {
             + acc_value.powf(1.14 * nodt_bonus))
         .powf(1.0 / 1.1)
             * multiplier;
-
-        if self.mods.dt() && self.mods.hr() {
-            pp *= 1.025;
-        }
 
         if difficulty.beatmap_creator == "gwb" || difficulty.beatmap_creator == "Plasma" {
             pp *= 0.9;
