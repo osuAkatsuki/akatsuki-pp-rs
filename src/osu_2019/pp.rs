@@ -261,8 +261,8 @@ impl<'m> OsuPP<'m> {
             ((difficulty.aim_strain / difficulty.speed_strain) * 100.0).round() / 100.0;
 
         if streams_nerf < 1.09 {
-            let acc_factor = (1.0 - self.acc.unwrap()).abs();
-            speed_value *= (0.86 - acc_factor).max(0.5);
+            let factor = (streams_nerf as f32 - 0.29).max(0.0).powf(2.0);
+            speed_value *= factor;
         }
 
         let pp = (aim_value.powf(1.1) + speed_value.powf(1.1)).powf(1.0 / 1.1) * multiplier;
