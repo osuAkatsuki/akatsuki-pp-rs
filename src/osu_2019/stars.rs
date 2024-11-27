@@ -138,6 +138,8 @@ pub fn stars(
     let aim_difficult_strain_count = aim.count_difficult_strains();
     let speed_difficult_strain_count = speed.count_difficult_strains();
 
+    let speed_note_count = speed.relevant_note_count();
+
     let stars = aim_strain + speed_strain + (aim_strain - speed_strain).abs() / 2.0;
 
     diff_attributes.stars = stars as f64;
@@ -145,6 +147,7 @@ pub fn stars(
     diff_attributes.aim_strain = aim_strain as f64;
     diff_attributes.aim_difficult_strain_count = aim_difficult_strain_count;
     diff_attributes.speed_difficult_strain_count = speed_difficult_strain_count;
+    diff_attributes.speed_note_count = speed_note_count;
 
     diff_attributes
 }
@@ -162,17 +165,17 @@ pub struct OsuDifficultyAttributes {
     pub n_spinners: usize,
     pub stars: f64,
     pub max_combo: usize,
-    pub aim_difficult_strain_count: f64,
-    pub speed_difficult_strain_count: f64,
+    pub aim_difficult_strain_count: f32,
+    pub speed_difficult_strain_count: f32,
     pub beatmap_id: i32,
     pub beatmap_creator: String,
+    pub speed_note_count: f32,
 }
 
 #[derive(Clone, Debug)]
 pub struct OsuPerformanceAttributes {
     pub difficulty: OsuDifficultyAttributes,
     pub pp: f64,
-    pub pp_acc: f64,
     pub pp_aim: f64,
     pub pp_speed: f64,
     pub effective_miss_count: f64,

@@ -243,7 +243,7 @@ impl<'m> OsuPP<'m> {
         self.assert_hitresults();
 
         let total_hits = self.total_hits() as f32;
-        let mut multiplier = 1.09;
+        let mut multiplier = 1.2;
 
         let effective_miss_count = self.calculate_effective_miss_count();
 
@@ -253,11 +253,8 @@ impl<'m> OsuPP<'m> {
                 1.0 - (self.attributes.as_ref().unwrap().n_spinners as f32 / total_hits).powf(0.85);
         }
 
-        let mut aim_value = self.compute_aim_value(total_hits, effective_miss_count);
-        let speed_value = self.compute_speed_value(total_hits, effective_miss_count);
-        let acc_value = self.compute_accuracy_value(total_hits);
-
-        let mut acc_depression = 1.0;
+        let aim_value = self.compute_aim_value(total_hits, effective_miss_count);
+        let mut speed_value = self.compute_speed_value(total_hits, effective_miss_count);
 
         let difficulty = self.attributes.as_ref().unwrap();
         let streams_nerf =
@@ -265,24 +262,15 @@ impl<'m> OsuPP<'m> {
 
         if streams_nerf < 1.09 {
             let acc_factor = (1.0 - self.acc.unwrap()).abs();
-            acc_depression = (0.86 - acc_factor).max(0.5);
-
-            if acc_depression > 0.0 {
-                aim_value *= acc_depression;
-            }
+            speed_value *= (0.86 - acc_factor).max(0.5);
         }
 
-        let pp = (aim_value.powf(1.185)
-            + speed_value.powf(0.83 * acc_depression)
-            + acc_value.powf(1.14))
-        .powf(1.0 / 1.1)
-            * multiplier;
+        let pp = (aim_value.powf(1.1) + speed_value.powf(1.1)).powf(1.0 / 1.1) * multiplier;
 
         OsuPerformanceAttributes {
             difficulty: self.attributes.unwrap(),
             pp_aim: aim_value as f64,
             pp_speed: speed_value as f64,
-            pp_acc: acc_value as f64,
             pp: pp as f64,
             effective_miss_count: effective_miss_count as f64,
         }
@@ -301,33 +289,23 @@ impl<'m> OsuPP<'m> {
         let mut aim_value = (5.0 * (raw_aim / 0.0675).max(1.0) - 4.0).powi(3) / 100_000.0;
 
         // Longer maps are worth more
-        let len_bonus = 0.88
+        let len_bonus = 0.95
             + 0.4 * (total_hits / 2000.0).min(1.0)
             + (total_hits > 2000.0) as u8 as f32 * 0.5 * (total_hits / 2000.0).log10();
         aim_value *= len_bonus;
 
         // Penalize misses
         if effective_miss_count > 0.0 {
-            let miss_penalty = self.calculate_miss_penalty(effective_miss_count);
+            let miss_penalty = self.calculate_miss_penalty(
+                effective_miss_count,
+                attributes.aim_difficult_strain_count,
+            );
             aim_value *= miss_penalty;
         }
 
-        // AR bonus
-        let mut ar_factor = if attributes.ar > 10.33 {
-            0.3 * (attributes.ar - 10.33)
-        } else {
-            0.0
-        };
-
-        if attributes.ar < 8.0 {
-            ar_factor = 0.025 * (8.0 - attributes.ar);
-        }
-
-        aim_value *= 1.0 + ar_factor as f32 * len_bonus;
-
         // HD bonus
         if self.mods.hd() {
-            aim_value *= 1.0 + 0.05 * (11.0 - attributes.ar) as f32;
+            aim_value *= 1.0 + 0.04 * (12.0 - attributes.ar) as f32;
         }
 
         // FL bonus
@@ -341,7 +319,7 @@ impl<'m> OsuPP<'m> {
         }
 
         // Scale with accuracy
-        aim_value *= 0.3 + self.acc.unwrap() / 2.0;
+        aim_value *= self.acc.unwrap();
         aim_value *= 0.98 + attributes.od as f32 * attributes.od as f32 / 2500.0;
 
         aim_value
@@ -354,80 +332,52 @@ impl<'m> OsuPP<'m> {
             (5.0 * (attributes.speed_strain as f32 / 0.0675).max(1.0) - 4.0).powi(3) / 100_000.0;
 
         // Longer maps are worth more
-        let len_bonus = 0.88
+        let len_bonus = 0.95
             + 0.4 * (total_hits / 2000.0).min(1.0)
             + (total_hits > 2000.0) as u8 as f32 * 0.5 * (total_hits / 2000.0).log10();
         speed_value *= len_bonus;
 
         // Penalize misses
         if effective_miss_count > 0.0 {
-            let miss_penalty = self.calculate_miss_penalty(effective_miss_count);
+            let miss_penalty = self.calculate_miss_penalty(
+                effective_miss_count,
+                attributes.speed_difficult_strain_count,
+            );
             speed_value *= miss_penalty;
-        }
-
-        // AR bonus
-        if attributes.ar > 10.33 {
-            let mut ar_factor = if attributes.ar > 10.33 {
-                0.3 * (attributes.ar - 10.33)
-            } else {
-                0.0
-            };
-
-            if attributes.ar < 8.0 {
-                ar_factor = 0.025 * (8.0 - attributes.ar);
-            }
-
-            speed_value *= 1.0 + ar_factor as f32 * len_bonus;
         }
 
         // HD bonus
         if self.mods.hd() {
-            speed_value *= 1.0 + 0.05 * (11.0 - attributes.ar) as f32;
+            speed_value *= 1.0 + 0.04 * (12.0 - attributes.ar) as f32;
         }
 
         // Scaling the speed value with accuracy and OD
-        speed_value *= (0.93 + attributes.od as f32 * attributes.od as f32 / 750.0)
-            * self
-                .acc
-                .unwrap()
-                .powf((14.5 - attributes.od.max(8.0) as f32) / 2.0);
+        let n300 = self.n300.unwrap();
+        let n100 = self.n100.unwrap();
+        let n50 = self.n50.unwrap();
 
-        speed_value *= 0.98_f32.powf(match (self.n50.unwrap() as f32) < total_hits / 500.0 {
+        let relevant_total_diff = total_hits - attributes.speed_note_count;
+        let relevant_n300 = (n300 as f32 - relevant_total_diff).max(0.0);
+        let relevant_n100 = (n100 as f32 - (relevant_total_diff - n300 as f32).max(0.0)).max(0.0);
+        let relevant_n50 =
+            (n50 as f32 - (relevant_total_diff - (n300 + n100) as f32).max(0.0)).max(0.0);
+
+        let relevant_acc = if attributes.speed_note_count == 0.0 {
+            0.0
+        } else {
+            (relevant_n300 * 6.0 + relevant_n100 * 2.0 + relevant_n50)
+                / (attributes.speed_note_count * 6.0)
+        };
+
+        speed_value *= (0.95 + attributes.od as f32 * attributes.od as f32 / 750.0)
+            * ((self.acc.unwrap() + relevant_acc) / 2.0).powf((14.5 - attributes.od as f32) / 2.0);
+
+        speed_value *= 0.99_f32.powf(match (n50 as f32) < total_hits / 500.0 {
             true => 0.0,
             false => self.n50.unwrap() as f32 - total_hits / 500.0,
         });
 
         speed_value
-    }
-
-    fn compute_accuracy_value(&self, total_hits: f32) -> f32 {
-        let attributes = self.attributes.as_ref().unwrap();
-        let n_circles = attributes.n_circles as f32;
-        let n300 = self.n300.unwrap_or(0) as f32;
-        let n100 = self.n100.unwrap_or(0) as f32;
-        let n50 = self.n50.unwrap_or(0) as f32;
-
-        let better_acc_percentage = (n_circles > 0.0) as u8 as f32
-            * (((n300 - (total_hits - n_circles)) * 6.0 + n100 * 2.0 + n50) / (n_circles * 6.0))
-                .max(0.0);
-
-        let mut acc_value =
-            1.52163_f32.powf(attributes.od as f32) * better_acc_percentage.powi(24) * 2.83;
-
-        // Bonus for many hitcircles
-        acc_value *= ((n_circles as f32 / 1000.0).powf(0.3)).min(1.15);
-
-        // HD bonus
-        if self.mods.hd() {
-            acc_value *= 1.08;
-        }
-
-        // FL bonus
-        if self.mods.fl() {
-            acc_value *= 1.02;
-        }
-
-        acc_value
     }
 
     #[inline]
@@ -439,11 +389,12 @@ impl<'m> OsuPP<'m> {
     }
 
     #[inline]
-    fn calculate_miss_penalty(&self, effective_miss_count: f32) -> f32 {
-        let total_hits = self.total_hits() as f32;
-
-        0.97 * (1.0 - (effective_miss_count / total_hits).powf(0.5))
-            .powf(1.0 + (effective_miss_count / 1.5))
+    fn calculate_miss_penalty(
+        &self,
+        effective_miss_count: f32,
+        difficult_strain_count: f32,
+    ) -> f32 {
+        0.96 / ((effective_miss_count / (4.0 * difficult_strain_count.ln().powf(0.94))) + 1.0)
     }
 
     #[inline]
