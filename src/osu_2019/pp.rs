@@ -253,6 +253,16 @@ impl<'m> OsuPP<'m> {
                 1.0 - (self.attributes.as_ref().unwrap().n_spinners as f32 / total_hits).powf(0.85);
         }
 
+        if self.difficulty.cs() >= 5.2 {
+            let cs = self.difficulty.cs()
+            let dthr_bonus = match self.mods.dt() || self.mods.nc() || self.mods.hr() {
+                true => 1.0 + (cs * (cs / 48.0) * (cs + 1.0)).powf(cs/100.0).log2() / 10.0,
+                false => 1.0
+            }
+
+            multiplier *= dthr_bonus
+        }
+
         let mut aim_value = self.compute_aim_value(total_hits, effective_miss_count);
         let speed_value = self.compute_speed_value(total_hits, effective_miss_count);
         let acc_value = self.compute_accuracy_value(total_hits);
