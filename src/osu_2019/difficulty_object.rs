@@ -2,23 +2,23 @@ use super::OsuObject;
 
 pub(crate) struct DifficultyObject<'h> {
     pub(crate) base: &'h OsuObject,
-    pub(crate) prev: Option<(f32, f32)>, // (jump_dist, strain_time)
+    pub(crate) prev: Option<(f32, f64)>, // (jump_dist, strain_time)
 
     pub(crate) jump_dist: f32,
     pub(crate) travel_dist: f32,
     pub(crate) angle: Option<f32>,
 
-    pub(crate) delta: f32,
-    pub(crate) strain_time: f32,
+    pub(crate) delta: f64,
+    pub(crate) strain_time: f64,
 }
 
 impl<'h> DifficultyObject<'h> {
     pub(crate) fn new(
         base: &'h OsuObject,
         prev: &OsuObject,
-        prev_vals: Option<(f32, f32)>, // (jump_dist, strain_time)
+        prev_vals: Option<(f32, f64)>, // (jump_dist, strain_time)
         prev_prev: Option<OsuObject>,
-        clock_rate: f32,
+        clock_rate: f64,
         scaling_factor: f32,
     ) -> Self {
         let delta = (base.time - prev.time) / clock_rate;

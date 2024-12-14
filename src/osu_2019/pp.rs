@@ -243,7 +243,7 @@ impl<'m> OsuPP<'m> {
         self.assert_hitresults();
 
         let total_hits = self.total_hits() as f32;
-        let mut multiplier = 1.2;
+        let mut multiplier = 1.15;
 
         let effective_miss_count = self.calculate_effective_miss_count();
 
@@ -289,8 +289,8 @@ impl<'m> OsuPP<'m> {
         let mut aim_value = (5.0 * (raw_aim / 0.0675).max(1.0) - 4.0).powi(3) / 100_000.0;
 
         // Longer maps are worth more
-        let len_bonus = 0.88
-            + 0.4 * (total_hits / 2000.0).min(1.0)
+        let len_bonus = 1.0
+            + 0.35 * (total_hits / 2000.0).min(1.0)
             + (total_hits > 2000.0) as u8 as f32 * 0.5 * (total_hits / 2000.0).log10();
         aim_value *= len_bonus;
 
@@ -332,8 +332,8 @@ impl<'m> OsuPP<'m> {
             (5.0 * (attributes.speed_strain as f32 / 0.0675).max(1.0) - 4.0).powi(3) / 100_000.0;
 
         // Longer maps are worth more
-        let len_bonus = 0.88
-            + 0.4 * (total_hits / 2000.0).min(1.0)
+        let len_bonus = 1.0
+            + 0.35 * (total_hits / 2000.0).min(1.0)
             + (total_hits > 2000.0) as u8 as f32 * 0.5 * (total_hits / 2000.0).log10();
         speed_value *= len_bonus;
 
@@ -356,7 +356,7 @@ impl<'m> OsuPP<'m> {
         let n100 = self.n100.unwrap();
         let n50 = self.n50.unwrap();
 
-        let relevant_total_diff = total_hits - attributes.speed_note_count;
+        let relevant_total_diff = total_hits - attributes.speed_note_count as f32;
         let relevant_n300 = (n300 as f32 - relevant_total_diff).max(0.0);
         let relevant_n100 = (n100 as f32 - (relevant_total_diff - n300 as f32).max(0.0)).max(0.0);
         let relevant_n50 =
@@ -366,7 +366,7 @@ impl<'m> OsuPP<'m> {
             0.0
         } else {
             (relevant_n300 * 6.0 + relevant_n100 * 2.0 + relevant_n50)
-                / (attributes.speed_note_count * 6.0)
+                / (attributes.speed_note_count as f32 * 6.0)
         };
 
         speed_value *= (0.95 + attributes.od as f32 * attributes.od as f32 / 750.0)
@@ -392,9 +392,10 @@ impl<'m> OsuPP<'m> {
     fn calculate_miss_penalty(
         &self,
         effective_miss_count: f32,
-        difficult_strain_count: f32,
+        difficult_strain_count: f64,
     ) -> f32 {
-        0.96 / ((effective_miss_count / (4.0 * difficult_strain_count.ln().powf(0.94))) + 1.0)
+        0.96 / ((effective_miss_count / (4.0 * (difficult_strain_count as f32).ln().powf(0.94)))
+            + 1.0)
     }
 
     #[inline]

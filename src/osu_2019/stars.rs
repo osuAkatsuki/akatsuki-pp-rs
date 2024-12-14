@@ -9,8 +9,10 @@ use crate::{Beatmap, GameMods};
 use rosu_map::section::hit_objects::CurveBuffers;
 
 const OBJECT_RADIUS: f32 = 64.0;
-const SECTION_LEN: f32 = 400.0;
-const DIFFICULTY_MULTIPLIER: f32 = 0.0675;
+
+pub(crate) const SECTION_LEN: f64 = 400.0;
+
+const DIFFICULTY_MULTIPLIER: f64 = 0.0675;
 const NORMALIZED_RADIUS: f32 = 52.0;
 
 /// Star calculation for osu!standard maps.
@@ -44,7 +46,7 @@ pub fn stars(
         return diff_attributes;
     }
 
-    let section_len = SECTION_LEN * map_attributes.clock_rate as f32;
+    let section_len = SECTION_LEN * map_attributes.clock_rate;
     let radius = OBJECT_RADIUS * (1.0 - 0.7 * (map_attributes.cs as f32 - 5.0) / 5.0) / 2.0;
     let mut scaling_factor = NORMALIZED_RADIUS / radius;
 
@@ -68,12 +70,12 @@ pub fn stars(
         ))
     });
 
-    let mut aim = Skill::new(SkillKind::Aim);
-    let mut speed = Skill::new(SkillKind::Speed);
+    let mut aim = Skill::new(SkillKind::Aim, section_len);
+    let mut speed = Skill::new(SkillKind::Speed, section_len);
 
     // First object has no predecessor and thus no strain, handle distinctly
     let mut current_section_end =
-        (map.hit_objects[0].start_time as f32 / section_len).ceil() * section_len;
+        (map.hit_objects[0].start_time / section_len).ceil() * section_len;
 
     let mut prev_prev = None;
     let mut prev = hit_objects.next().unwrap();
@@ -86,11 +88,11 @@ pub fn stars(
         &prev,
         prev_vals,
         prev_prev,
-        map_attributes.clock_rate as f32,
+        map_attributes.clock_rate,
         scaling_factor,
     );
 
-    while h.base.time as f32 > current_section_end {
+    while h.base.time > current_section_end {
         current_section_end += section_len;
     }
 
@@ -108,11 +110,11 @@ pub fn stars(
             &prev,
             prev_vals,
             prev_prev,
-            map_attributes.clock_rate as f32,
+            map_attributes.clock_rate,
             scaling_factor,
         );
 
-        while h.base.time as f32 > current_section_end {
+        while h.base.time > current_section_end {
             aim.save_current_peak();
             aim.start_new_section_from(current_section_end);
             speed.save_current_peak();
@@ -165,11 +167,11 @@ pub struct OsuDifficultyAttributes {
     pub n_spinners: usize,
     pub stars: f64,
     pub max_combo: usize,
-    pub aim_difficult_strain_count: f32,
-    pub speed_difficult_strain_count: f32,
+    pub aim_difficult_strain_count: f64,
+    pub speed_difficult_strain_count: f64,
     pub beatmap_id: i32,
     pub beatmap_creator: String,
-    pub speed_note_count: f32,
+    pub speed_note_count: f64,
 }
 
 #[derive(Clone, Debug)]
