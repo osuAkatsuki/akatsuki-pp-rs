@@ -20,7 +20,7 @@ const LEGACY_LAST_TICK_OFFSET: f64 = 36.0;
 const BASE_SCORING_DISTANCE: f64 = 100.0;
 
 pub(crate) struct OsuObject {
-    pub(crate) time: f64,
+    pub(crate) time: f32,
     pub(crate) pos: Pos,
     pub(crate) end_pos: Pos,
     // circle: Some(0.0) | slider: Some(_) | spinner: None
@@ -44,7 +44,7 @@ impl OsuObject {
                 attrs.n_circles += 1;
 
                 Self {
-                    time: h.start_time,
+                    time: h.start_time as f32,
                     pos: h.pos,
                     end_pos: h.pos,
                     travel_dist: Some(0.0),
@@ -185,7 +185,7 @@ impl OsuObject {
                 travel_dist *= scaling_factor;
 
                 Self {
-                    time: h.start_time,
+                    time: h.start_time as f32,
                     pos: h.pos,
                     end_pos,
                     travel_dist: Some(travel_dist),
@@ -195,7 +195,7 @@ impl OsuObject {
                 attrs.n_spinners += 1;
 
                 Self {
-                    time: h.start_time,
+                    time: h.start_time as f32,
                     pos: h.pos,
                     end_pos: h.pos,
                     travel_dist: None,
