@@ -33,8 +33,6 @@ pub fn stars(
         ar: map_attributes.ar,
         od: map_attributes.od,
         cs: map_attributes.cs,
-        beatmap_id: map.beatmap_id,
-        beatmap_creator: map.creator.clone(),
         ..Default::default()
     };
 

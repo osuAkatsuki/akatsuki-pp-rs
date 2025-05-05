@@ -5,10 +5,10 @@
 //! while also providing a significant [boost in performance](#speed).
 //!
 //! Last commits of the ported code:
-//!   - [osu!lazer] : `8bd65d9938a10fc42e6409501b0282f0fa4a25ef` (2024-11-08)
-//!   - [osu!tools] : `89b8f3b1c2e4e5674004eac4723120e7d3aef997` (2024-11-03)
+//!   - [osu!lazer] : `79b737bc270c8361261a9edd43b380f5326c3848` (2025-02-27)
+//!   - [osu!tools] : `152c5d90f73f4d7eabcf4047ecb939c1b621db85` (2025-02-28)
 //!
-//! News posts of the latest updates: <https://osu.ppy.sh/home/news/2024-10-28-performance-points-star-rating-updates>
+//! News posts of the latest updates: <https://osu.ppy.sh/home/news/2025-03-06-performance-points-star-rating-updates>
 //!
 //! ## Usage
 //!
@@ -87,14 +87,14 @@
 //!
 //! ## Accuracy
 //!
-//! `rosu-pp` was tested against all current beatmaps on multiple mod combinations and delivered
+//! `rosu-pp` was tested against millions of real scores and delivered
 //! values that matched osu!lazer perfectly down to the last decimal place.
 //!
 //! However, there is one small caveat: the values are only this precise on debug mode.
 //! On release mode, Rust's compiler performs optimizations that produce the tiniest discrepancies
-//! due to floating point inaccuracies which can cascade into larger differences in the end.
-//! With this in mind, `rosu-pp` is still as accurate as can be without targeting the
-//! .NET compiler itself. Realistically, the inaccuracies in release mode are negligibly small.
+//! due to floating point inaccuracies. With this in mind, `rosu-pp` is still as accurate as can
+//! be without targeting the .NET compiler itself.
+//! Realistically, the inaccuracies in release mode are negligibly small.
 //!
 //! ## Speed
 //!
@@ -105,14 +105,14 @@
 //! Results of a rudimentary [benchmark] of osu!lazer and rosu-pp:
 //! ```txt
 //! osu!lazer:
-//! Decoding maps:            Median: 378.10ms | Mean: 381.47ms
-//! Calculating difficulties: Median: 588.89ms | Mean: 597.11ms
-//! Calculating performances: Median: 315.90µs | Mean: 310.60µs
+//! Decoding maps:            Median: 325.18ms | Mean: 325.50ms
+//! Calculating difficulties: Median: 568.63ms | Mean: 575.97ms
+//! Calculating performances: Median: 256.00µs | Mean: 240.40µs
 //!
 //! rosu-pp:
-//! Decoding maps:            Median: 46.94ms | Mean: 47.21ms
-//! Calculating difficulties: Median: 72.90ms | Mean: 73.13ms
-//! Calculating performances: Median: 44.13µs | Mean: 45.53µs
+//! Decoding maps:            Median: 46.03ms | Mean: 47.13ms
+//! Calculating difficulties: Median: 82.11ms | Mean: 84.27ms
+//! Calculating performances: Median: 40.57µs | Mean: 43.41µs
 //! ```
 //!
 //! ## Features
@@ -162,6 +162,9 @@ pub use self::{
     model::{beatmap::Beatmap, mods::GameMods},
 };
 
+#[macro_use]
+mod util;
+
 /// Types for calculations of any mode.
 pub mod any;
 
@@ -182,5 +185,3 @@ pub mod osu_2019;
 
 /// Types used in and around this crate.
 pub mod model;
-
-mod util;
