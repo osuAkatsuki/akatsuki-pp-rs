@@ -314,7 +314,7 @@ impl<'m> OsuPP<'m> {
 
         // AR bonus
         let mut ar_factor = if attributes.ar > 10.33 {
-            0.3 * (attributes.ar - 10.33)
+            0.05 * (attributes.ar - 10.33)
         } else {
             0.0
         };
@@ -341,7 +341,7 @@ impl<'m> OsuPP<'m> {
         }
 
         // Scale with accuracy
-        aim_value *= 0.3 + self.acc.unwrap() / 2.0;
+        aim_value *= self.acc.unwrap() * 0.8;
         aim_value *= 0.98 + attributes.od as f32 * attributes.od as f32 / 2500.0;
 
         aim_value
@@ -368,7 +368,7 @@ impl<'m> OsuPP<'m> {
         // AR bonus
         if attributes.ar > 10.33 {
             let mut ar_factor = if attributes.ar > 10.33 {
-                0.3 * (attributes.ar - 10.33)
+                0.05 * (attributes.ar - 10.33)
             } else {
                 0.0
             };
