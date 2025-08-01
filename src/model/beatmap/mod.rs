@@ -15,6 +15,7 @@ use crate::{
 pub use self::{
     attributes::{BeatmapAttributes, BeatmapAttributesBuilder, HitWindows},
     decode::{BeatmapState, ParseBeatmapError},
+    suspicious::TooSuspicious,
 };
 
 use super::{
@@ -29,6 +30,7 @@ use super::{
 mod attributes;
 mod bpm;
 mod decode;
+mod suspicious;
 
 /// All beatmap data that is relevant for difficulty and performance
 /// calculation.
@@ -60,9 +62,6 @@ pub struct Beatmap {
     // HitObjects
     pub hit_objects: Vec<HitObject>,
     pub hit_sounds: Vec<HitSoundType>,
-
-    pub creator: String,
-    pub beatmap_id: i32,
 }
 
 impl Beatmap {
@@ -156,7 +155,7 @@ impl Beatmap {
             GameMode::Catch => Catch::convert(&mut map),
             GameMode::Mania => Mania::convert(&mut map, mods),
             GameMode::Osu => unreachable!(),
-        };
+        }
 
         Ok(Cow::Owned(map))
     }
@@ -184,6 +183,19 @@ impl Beatmap {
         }
 
         Ok(())
+    }
+
+    /// Check whether hitobjects appear too suspicious for further calculation.
+    ///
+    /// Sometimes a [`Beatmap`] isn't created for gameplay but rather to test
+    /// the limits of osu! itself. Difficulty- and/or performance calculation
+    /// should likely be avoided on these maps due to potential performance
+    /// issues.
+    pub fn check_suspicion(&self) -> Result<(), TooSuspicious> {
+        match TooSuspicious::new(self) {
+            None => Ok(()),
+            Some(err) => Err(err),
+        }
     }
 }
 
@@ -218,8 +230,6 @@ impl Default for Beatmap {
             effect_points: Vec::default(),
             hit_objects: Vec::default(),
             hit_sounds: Vec::default(),
-            creator: String::default(),
-            beatmap_id: i32::default(),
         }
     }
 }
