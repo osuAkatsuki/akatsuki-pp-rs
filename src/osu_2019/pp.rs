@@ -131,7 +131,7 @@ impl<'m> OsuPP<'m> {
 
     #[inline]
     pub fn passed_objects(mut self, passed_objects: u32) -> Self {
-        self.passed_objects = self.passed_objects.replace(passed_objects);
+        self.passed_objects = Some(passed_objects);
 
         self
     }
