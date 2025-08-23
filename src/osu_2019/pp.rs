@@ -272,9 +272,9 @@ impl<'m> OsuPP<'m> {
             }
         }
 
-        let pp = (aim_value.powf(1.185)
+        let pp = (aim_value.powf(1.19)
             + speed_value.powf(0.83 * acc_depression)
-            + acc_value.powf(1.14))
+            + acc_value.powf(1.15))
         .powf(1.0 / 1.1)
             * multiplier;
 
@@ -316,7 +316,7 @@ impl<'m> OsuPP<'m> {
         let mut ar_factor = if attributes.ar > 10.33 {
             0.3 * (attributes.ar - 10.33)
         } else {
-            0.0
+            0.15
         };
 
         if attributes.ar < 8.0 {
@@ -341,8 +341,13 @@ impl<'m> OsuPP<'m> {
         }
 
         // Scale with accuracy
-        aim_value *= 0.3 + self.acc.unwrap() / 2.0;
-        aim_value *= 0.98 + attributes.od as f32 * attributes.od as f32 / 2500.0;
+        aim_value *= 0.31 + self.acc.unwrap() / 2.0;
+
+        aim_value *= (0.96 + attributes.od as f32 * attributes.od as f32 / 2500.0)
+        * self
+            .acc
+            .unwrap()
+            .powf((11.0 - attributes.od.max(8.0) as f32) / 2.0);
 
         aim_value
     }
@@ -351,7 +356,7 @@ impl<'m> OsuPP<'m> {
         let attributes = self.attributes.as_ref().unwrap();
 
         let mut speed_value =
-            (5.0 * (attributes.speed_strain as f32 / 0.0675).max(1.0) - 4.0).powi(3) / 100_000.0;
+            (4.0 * (attributes.speed_strain as f32 / 0.0675).max(0.8) - 4.0).powi(3) / 100_000.0;
 
         // Longer maps are worth more
         let len_bonus = 0.88
