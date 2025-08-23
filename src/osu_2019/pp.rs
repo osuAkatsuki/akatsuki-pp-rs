@@ -340,9 +340,17 @@ impl<'m> OsuPP<'m> {
                 + (total_hits > 500.0) as u8 as f32 * (total_hits - 500.0) / 1600.0;
         }
 
-        // Scale with accuracy
-        aim_value *= 0.3 + self.acc.unwrap() / 2.0;
-        aim_value *= 0.98 + attributes.od as f32 * attributes.od as f32 / 2500.0;
+        // Scaling the aim value with accuracy and OD
+        aim_value *= (0.93 + attributes.od as f32 * attributes.od as f32 / 750.0)
+            * self
+                .acc
+                .unwrap()
+                .powf((14.5 - attributes.od.max(8.0) as f32) / 2.0);
+
+        aim_value *= 0.98_f32.powf(match (self.n50.unwrap() as f32) < total_hits / 500.0 {
+            true => 0.0,
+            false => self.n50.unwrap() as f32 - total_hits / 500.0,
+        });
 
         aim_value
     }
