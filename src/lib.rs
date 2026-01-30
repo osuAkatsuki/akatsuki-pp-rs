@@ -177,7 +177,14 @@ pub mod catch;
 /// Types for osu!mania calculations.
 pub mod mania;
 
-/// Types for osu!standard 2019 for relax calculations.
+/// Types for osu!standard 2019-era PP calculations.
+///
+/// **Deprecated**: Use the [`osu`] module instead, which now supports
+/// Relax (RX) and Autopilot (AP) modes with modern formulas.
+#[deprecated(
+    since = "1.2.0",
+    note = "Use the `osu` module instead, which now supports RX and AP modes with modern formulas"
+)]
 pub mod osu_2019;
 
 /// Types used in and around this crate.

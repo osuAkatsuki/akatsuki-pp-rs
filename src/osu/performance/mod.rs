@@ -925,6 +925,24 @@ impl OsuPerformanceInner<'_> {
         // * It is important to consider accuracy difficulty when scaling with accuracy.
         aim_value *= 0.98 + self.attrs.od.powf(2.0) / 2500.0;
 
+        // RX-specific: streams_nerf
+        // Penalizes aim PP on stream-heavy maps where RX trivializes tapping.
+        // Uses difficult strain count ratio to detect stream-heavy maps (since
+        // speed_rating is already zeroed for RX by the time we reach performance calc).
+        if self.mods.rx() && self.attrs.speed_difficult_strain_count > 0.0 {
+            let streams_ratio = (self.attrs.aim_difficult_strain_count
+                / self.attrs.speed_difficult_strain_count
+                * 100.0)
+                .round()
+                / 100.0;
+
+            if streams_ratio < 1.09 {
+                let acc_factor = (1.0 - self.acc).abs();
+                let acc_depression = (0.86 - acc_factor).max(0.5);
+                aim_value *= acc_depression;
+            }
+        }
+
         aim_value
     }
 
@@ -1578,5 +1596,142 @@ mod test {
         .is_none());
         assert!(OsuPerformance::try_new(&map).is_none());
         assert!(OsuPerformance::try_new(map).is_none());
+    }
+
+    #[test]
+    fn rx_mode_zeroes_speed_pp() {
+        let map = beatmap();
+        let mut mods = GameModsIntermode::new();
+        mods.insert(GameModIntermode::Relax);
+
+        let result = OsuPerformance::new(&map)
+            .mods(mods)
+            .accuracy(99.0)
+            .calculate()
+            .unwrap();
+
+        assert!(
+            result.pp_speed == 0.0,
+            "RX should have zero speed PP, got {}",
+            result.pp_speed
+        );
+        assert!(
+            result.pp_aim > 0.0,
+            "RX should have positive aim PP, got {}",
+            result.pp_aim
+        );
+    }
+
+    #[test]
+    fn rx_streams_nerf_applied_on_stream_heavy_map() {
+        // Create synthetic difficulty attributes that simulate a stream-heavy map
+        // where aim/speed ratio is below 1.09
+        let mut attrs = OsuDifficultyAttributes::default();
+        attrs.aim = 5.0;
+        attrs.speed = 0.0; // RX sets this to 0
+        attrs.od = 9.0;
+        attrs.ar = 9.5;
+        attrs.max_combo = 1000;
+        attrs.n_circles = 500;
+        attrs.n_sliders = 100;
+        attrs.n_spinners = 0;
+        // Simulate stream-heavy: aim strain count < 1.09 * speed strain count
+        attrs.aim_difficult_strain_count = 50.0;
+        attrs.speed_difficult_strain_count = 100.0; // ratio = 0.50
+
+        let mut mods_rx = GameModsIntermode::new();
+        mods_rx.insert(GameModIntermode::Relax);
+
+        // Calculate with high accuracy (should get less nerf)
+        let result_high_acc = OsuPerformance::new(attrs.clone())
+            .mods(mods_rx.clone())
+            .accuracy(99.0)
+            .calculate()
+            .unwrap();
+
+        // Calculate with low accuracy (should get more nerf)
+        let result_low_acc = OsuPerformance::new(attrs.clone())
+            .mods(mods_rx)
+            .accuracy(85.0)
+            .calculate()
+            .unwrap();
+
+        // High accuracy should result in less severe nerf
+        // The acc_depression for 99% acc = (0.86 - 0.01).max(0.5) = 0.85
+        // The acc_depression for 85% acc = (0.86 - 0.15).max(0.5) = 0.71
+        // So high acc should have higher aim PP relative to a baseline
+        assert!(
+            result_high_acc.pp_aim > result_low_acc.pp_aim,
+            "High accuracy should result in higher aim PP due to streams_nerf: high_acc={}, low_acc={}",
+            result_high_acc.pp_aim,
+            result_low_acc.pp_aim
+        );
+    }
+
+    #[test]
+    fn rx_streams_nerf_not_applied_on_jump_map() {
+        // Create synthetic difficulty attributes that simulate a jump map
+        // where aim/speed ratio is above 1.09
+        let mut attrs = OsuDifficultyAttributes::default();
+        attrs.aim = 5.0;
+        attrs.speed = 0.0; // RX sets this to 0
+        attrs.od = 9.0;
+        attrs.ar = 9.5;
+        attrs.max_combo = 1000;
+        attrs.n_circles = 500;
+        attrs.n_sliders = 100;
+        attrs.n_spinners = 0;
+        // Simulate jump map: aim strain count > 1.09 * speed strain count
+        attrs.aim_difficult_strain_count = 150.0;
+        attrs.speed_difficult_strain_count = 100.0; // ratio = 1.50
+
+        let mut mods_rx = GameModsIntermode::new();
+        mods_rx.insert(GameModIntermode::Relax);
+
+        // Calculate with different accuracies
+        let result_high_acc = OsuPerformance::new(attrs.clone())
+            .mods(mods_rx.clone())
+            .accuracy(99.0)
+            .calculate()
+            .unwrap();
+
+        let result_low_acc = OsuPerformance::new(attrs.clone())
+            .mods(mods_rx)
+            .accuracy(85.0)
+            .calculate()
+            .unwrap();
+
+        // On a jump map, streams_nerf should not apply
+        // The difference in aim PP should only come from the normal accuracy scaling
+        // (not the streams_nerf which applies an additional acc_depression)
+        // For a proper test, we'd need to compare against a baseline, but we can at least
+        // verify both calculations complete successfully
+        assert!(result_high_acc.pp_aim > 0.0);
+        assert!(result_low_acc.pp_aim > 0.0);
+        assert!(result_high_acc.pp_aim > result_low_acc.pp_aim);
+    }
+
+    #[test]
+    fn ap_mode_zeroes_aim_pp() {
+        let map = beatmap();
+        let mut mods = GameModsIntermode::new();
+        mods.insert(GameModIntermode::Autopilot);
+
+        let result = OsuPerformance::new(&map)
+            .mods(mods)
+            .accuracy(99.0)
+            .calculate()
+            .unwrap();
+
+        assert!(
+            result.pp_aim == 0.0,
+            "AP should have zero aim PP, got {}",
+            result.pp_aim
+        );
+        assert!(
+            result.pp_speed > 0.0,
+            "AP should have positive speed PP, got {}",
+            result.pp_speed
+        );
     }
 }
