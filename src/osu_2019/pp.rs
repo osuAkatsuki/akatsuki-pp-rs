@@ -333,11 +333,11 @@ impl<'m> OsuPP<'m> {
         // FL bonus
         if self.mods.fl() {
             aim_value *= 1.0
-                + 0.3 * (total_hits / 200.0).min(1.0)
+                + 0.2 * (total_hits / 200.0).min(1.0)
                 + (total_hits > 200.0) as u8 as f32
-                    * 0.25
+                    * 0.15
                     * ((total_hits - 200.0) / 300.0).min(1.0)
-                + (total_hits > 500.0) as u8 as f32 * (total_hits - 500.0) / 1600.0;
+                + (total_hits > 500.0) as u8 as f32 * (total_hits - 500.0) / 2500.0;    
         }
 
         // Scale with accuracy
