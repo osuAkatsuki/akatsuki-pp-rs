@@ -302,13 +302,16 @@ impl<'m> OsuPP<'m> {
 
         // Longer maps are worth more
         let len_bonus = 0.88
-            + 0.4 * (total_hits / 2000.0).min(1.0)
-            + (total_hits > 2000.0) as u8 as f32 * 0.5 * (total_hits / 2000.0).log10();
+            + 0.4 * (total_hits / 1400.0).min(1.0)
+            + (total_hits > 1400.0) as u8 as f32 * 0.2 * (total_hits / 1400.0).log10();
         aim_value *= len_bonus;
 
         // Penalize misses
         if effective_miss_count > 0.0 {
-            let miss_penalty = self.calculate_miss_penalty(effective_miss_count);
+            let miss_penalty = self.calculate_miss_penalty(
+                effective_miss_count,
+                attributes.aim_difficult_strain_count as f32,
+            );
             aim_value *= miss_penalty;
         }
 
@@ -327,17 +330,19 @@ impl<'m> OsuPP<'m> {
 
         // HD bonus
         if self.mods.hd() {
-            aim_value *= 1.0 + 0.05 * (11.0 - attributes.ar) as f32;
+            let ar_capped = attributes.ar.min(10.67).max(0.0);
+            let hd_bonus_factor = (10.67 - ar_capped) as f32;
+            aim_value *= 1.0 + 0.075 * hd_bonus_factor;
         }
 
         // FL bonus
         if self.mods.fl() {
             aim_value *= 1.0
-                + 0.3 * (total_hits / 200.0).min(1.0)
+                + 0.2 * (total_hits / 200.0).min(1.0)
                 + (total_hits > 200.0) as u8 as f32
-                    * 0.25
+                    * 0.15
                     * ((total_hits - 200.0) / 300.0).min(1.0)
-                + (total_hits > 500.0) as u8 as f32 * (total_hits - 500.0) / 1600.0;
+                + (total_hits > 500.0) as u8 as f32 * (total_hits - 500.0) / 2500.0;
         }
 
         // Scale with accuracy
@@ -355,13 +360,16 @@ impl<'m> OsuPP<'m> {
 
         // Longer maps are worth more
         let len_bonus = 0.88
-            + 0.4 * (total_hits / 2000.0).min(1.0)
-            + (total_hits > 2000.0) as u8 as f32 * 0.5 * (total_hits / 2000.0).log10();
+            + 0.4 * (total_hits / 1600.0).min(1.0)
+            + (total_hits > 1600.0) as u8 as f32 * 0.5 * (total_hits / 1600.0).log10();
         speed_value *= len_bonus;
 
         // Penalize misses
         if effective_miss_count > 0.0 {
-            let miss_penalty = self.calculate_miss_penalty(effective_miss_count);
+            let miss_penalty = self.calculate_miss_penalty(
+                effective_miss_count,
+                attributes.speed_difficult_strain_count as f32,
+            );
             speed_value *= miss_penalty;
         }
 
@@ -439,11 +447,12 @@ impl<'m> OsuPP<'m> {
     }
 
     #[inline]
-    fn calculate_miss_penalty(&self, effective_miss_count: f32) -> f32 {
-        let total_hits = self.total_hits() as f32;
-
-        0.97 * (1.0 - (effective_miss_count / total_hits).powf(0.5))
-            .powf(1.0 + (effective_miss_count / 1.5))
+    fn calculate_miss_penalty(
+        &self,
+        effective_miss_count: f32,
+        difficult_strain_count: f32,
+    ) -> f32 {
+        0.96 / ((effective_miss_count / (4.0 * difficult_strain_count.ln().powf(0.94))) + 1.0)
     }
 
     #[inline]
@@ -456,7 +465,7 @@ impl<'m> OsuPP<'m> {
         let n50 = self.n50.unwrap_or(0) as f32;
 
         if attributes.n_sliders > 0 {
-            let fc_threshold = attributes.max_combo as f32 - (0.1 * attributes.n_sliders as f32);
+            let fc_threshold = attributes.max_combo as f32 - (0.2 * attributes.n_sliders as f32);
             if combo < fc_threshold {
                 combo_based_miss_count = fc_threshold / combo.max(1.0);
             }

@@ -48,8 +48,8 @@ pub fn stars(
     let radius = OBJECT_RADIUS * (1.0 - 0.7 * (map_attributes.cs as f32 - 5.0) / 5.0) / 2.0;
     let mut scaling_factor = NORMALIZED_RADIUS / radius;
 
-    if radius < 30.0 {
-        let small_circle_bonus = (30.0 - radius).min(5.0) / 50.0;
+    if radius < 30.05 {
+        let small_circle_bonus = ((30.05 - radius) / 50.0).powf(1.01) * 1.45;
         scaling_factor *= 1.0 + small_circle_bonus;
     }
 
@@ -132,21 +132,36 @@ pub fn stars(
     aim.save_current_peak();
     speed.save_current_peak();
 
-    let aim_strain = aim.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
-    let speed_strain = speed.difficulty_value().sqrt() * DIFFICULTY_MULTIPLIER;
+    let aim_strain_raw = (aim.difficulty_value().sqrt() as f64) * (DIFFICULTY_MULTIPLIER as f64);
+    let speed_strain = (speed.difficulty_value().sqrt() as f64) * (DIFFICULTY_MULTIPLIER as f64);
 
-    let aim_difficult_strain_count = aim.count_difficult_strains();
-    let speed_difficult_strain_count = speed.count_difficult_strains();
+    let aim_difficult_strain_count = aim.count_difficult_strains() as f64;
+    let speed_difficult_strain_count = speed.count_difficult_strains() as f64;
+
+    let ar = diff_attributes.ar; 
+    let ar_multiplier: f64 = if ar <= 9.0 {
+        1.25 
+    } else if ar <= 10.67 {
+        1.25 - (ar - 9.0) * (0.25 / 1.67)
+    } else {
+        1.0 - (ar - 10.67) * (0.05 / 0.33)
+    };
+
+    let intensity_gate = ((aim_difficult_strain_count - 2.0) / 5.0).clamp(0.0, 1.0);
+    let final_ar_bonus = 1.0 + (ar_multiplier - 1.0) * intensity_gate;
+
+    let aim_strain = aim_strain_raw * final_ar_bonus;
 
     let stars = aim_strain + speed_strain + (aim_strain - speed_strain).abs() / 2.0;
 
-    diff_attributes.stars = stars as f64;
-    diff_attributes.speed_strain = speed_strain as f64;
-    diff_attributes.aim_strain = aim_strain as f64;
+    diff_attributes.stars = stars;
+    diff_attributes.speed_strain = speed_strain;
+    diff_attributes.aim_strain = aim_strain;
     diff_attributes.aim_difficult_strain_count = aim_difficult_strain_count;
     diff_attributes.speed_difficult_strain_count = speed_difficult_strain_count;
 
     diff_attributes
+
 }
 
 #[derive(Clone, Debug, Default)]
