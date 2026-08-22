@@ -30,9 +30,9 @@ pub fn stars(
     let map_attributes = map.attributes().mods(mods).build();
 
     let mut diff_attributes = OsuDifficultyAttributes {
-        ar: map_attributes.ar,
-        od: map_attributes.od,
-        cs: map_attributes.cs,
+        ar: map_attributes.ar() as f64,
+        od: map_attributes.od() as f64,
+        cs: map_attributes.cs() as f64,
         beatmap_id: map.beatmap_id,
         beatmap_creator: map.creator.clone(),
         ..Default::default()
@@ -44,8 +44,8 @@ pub fn stars(
         return diff_attributes;
     }
 
-    let section_len = SECTION_LEN * map_attributes.clock_rate as f32;
-    let radius = OBJECT_RADIUS * (1.0 - 0.7 * (map_attributes.cs as f32 - 5.0) / 5.0) / 2.0;
+    let section_len = SECTION_LEN * map_attributes.clock_rate() as f32;
+    let radius = OBJECT_RADIUS * (1.0 - 0.7 * (map_attributes.cs() - 5.0) / 5.0) / 2.0;
     let mut scaling_factor = NORMALIZED_RADIUS / radius;
 
     if radius < 30.0 {

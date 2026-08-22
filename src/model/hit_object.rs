@@ -1,14 +1,16 @@
-use std::cmp::Ordering;
+use std::{borrow::Cow, cmp::Ordering};
 
 use rosu_map::section::{
     general::GameMode,
-    hit_objects::{BorrowedCurve, CurveBuffers},
+    hit_objects::{BorrowedCurve, Curve, CurveBuffers},
 };
 
 pub use rosu_map::{
-    section::hit_objects::{hit_samples::HitSoundType, PathControlPoint, PathType, SplineType},
+    section::hit_objects::{PathControlPoint, PathType, SplineType, hit_samples::HitSoundType},
     util::Pos,
 };
+
+use crate::model::mods::Reflection;
 
 /// All hitobject related data required for difficulty and performance
 /// calculation except for the [`HitSoundType`].
@@ -33,6 +35,11 @@ impl HitObject {
     /// Whether the hitobject is a spinner.
     pub const fn is_spinner(&self) -> bool {
         matches!(&self.kind, HitObjectKind::Spinner(_))
+    }
+
+    /// Whether the hitobject is a hold note.
+    pub const fn is_hold_note(&self) -> bool {
+        matches!(&self.kind, HitObjectKind::Hold(_))
     }
 
     /// The end time of the object.
@@ -79,11 +86,41 @@ impl Slider {
         self.repeats + 1
     }
 
-    pub(crate) fn curve<'a>(
+    /// Creates the [`Curve`] of a [`Slider`].
+    ///
+    /// Applies the [`Reflection`] onto control points before creating the
+    /// curve.
+    pub(crate) fn curve(
         &self,
         mode: GameMode,
-        bufs: &'a mut CurveBuffers,
-    ) -> BorrowedCurve<'a> {
+        reflection: Reflection,
+        bufs: &mut CurveBuffers,
+    ) -> Curve {
+        fn reflect<F: Fn(Pos) -> Pos>(points: &mut Cow<'_, [PathControlPoint]>, f: F) {
+            points
+                .to_mut()
+                .iter_mut()
+                .for_each(|point| point.pos = f(point.pos));
+        }
+
+        let mut points = Cow::Borrowed(self.control_points.as_ref());
+
+        match reflection {
+            Reflection::None => {}
+            Reflection::Vertical => reflect(&mut points, |pos| Pos::new(pos.x, -pos.y)),
+            Reflection::Horizontal => reflect(&mut points, |pos| Pos::new(-pos.x, pos.y)),
+            Reflection::Both => reflect(&mut points, |pos| Pos::new(-pos.x, -pos.y)),
+        }
+
+        Curve::new(mode, points.as_ref(), self.expected_dist, bufs)
+    }
+
+    /// Creates the [`BorrowedCurve`] of a [`Slider`].
+    pub(crate) fn borrowed_curve<'bufs>(
+        &self,
+        mode: GameMode,
+        bufs: &'bufs mut CurveBuffers,
+    ) -> BorrowedCurve<'bufs> {
         BorrowedCurve::new(mode, &self.control_points, self.expected_dist, bufs)
     }
 }

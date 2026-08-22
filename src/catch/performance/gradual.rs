@@ -1,7 +1,8 @@
 use crate::{
+    Beatmap, Difficulty,
+    any::CalculateError,
     catch::{CatchGradualDifficulty, CatchPerformanceAttributes, CatchScoreState},
     model::mode::ConvertError,
-    Beatmap, Difficulty,
 };
 
 /// Gradually calculate the performance attributes of an osu!catch map.
@@ -33,7 +34,7 @@ use crate::{
 ///
 /// // The first 10 hitresults are only fruits
 /// for _ in 0..10 {
-///     state.fruits += 1;
+///     state.hitresults.fruits += 1;
 ///     state.max_combo += 1;
 ///
 ///     let attrs = gradual.next(state.clone()).unwrap();
@@ -43,7 +44,7 @@ use crate::{
 /// // Then comes a miss.
 /// // Note that state's max combo won't be incremented for
 /// // the next few objects because the combo is reset.
-/// state.misses += 1;
+/// state.hitresults.misses += 1;
 /// let attrs = gradual.next(state.clone()).unwrap();
 /// println!("PP: {}", attrs.pp);
 ///
@@ -51,15 +52,15 @@ use crate::{
 /// // Notice how tiny droplets from sliders do not count as hit objects
 /// // that require processing. Only fruits and droplets do.
 /// // Also notice how all 10 objects will be processed in one go.
-/// state.fruits += 4;
-/// state.droplets += 6;
-/// state.tiny_droplets += 12;
+/// state.hitresults.fruits += 4;
+/// state.hitresults.droplets += 6;
+/// state.hitresults.tiny_droplets += 12;
 /// // The `nth` method takes a zero-based value.
 /// let attrs = gradual.nth(state.clone(), 9).unwrap();
 /// println!("PP: {}", attrs.pp);
 ///
 /// // Now comes another fruit. Note that the max combo gets incremented again.
-/// state.fruits += 1;
+/// state.hitresults.fruits += 1;
 /// state.max_combo += 1;
 /// let attrs = gradual.next(state.clone()).unwrap();
 /// println!("PP: {}", attrs.pp);
@@ -67,11 +68,11 @@ use crate::{
 /// // Skip to the end
 /// # /*
 /// state.max_combo = ...
-/// state.fruits = ...
-/// state.droplets = ...
-/// state.tiny_droplets = ...
-/// state.tiny_droplet_misses = ...
-/// state.misses = ...
+/// state.hitresults.fruits = ...
+/// state.hitresults.droplets = ...
+/// state.hitresults.tiny_droplets = ...
+/// state.hitresults.tiny_droplet_misses = ...
+/// state.hitresults.misses = ...
 /// # */
 /// let attrs = gradual.last(state.clone()).unwrap();
 /// println!("PP: {}", attrs.pp);
@@ -91,6 +92,14 @@ impl CatchGradualPerformance {
     /// Create a new gradual performance calculator for osu!catch maps.
     pub fn new(difficulty: Difficulty, map: &Beatmap) -> Result<Self, ConvertError> {
         let difficulty = CatchGradualDifficulty::new(difficulty, map)?;
+
+        Ok(Self { difficulty })
+    }
+
+    /// Same as [`CatchGradualPerformance::new`] but verifies that the map is
+    /// not suspicious.
+    pub fn checked_new(difficulty: Difficulty, map: &Beatmap) -> Result<Self, CalculateError> {
+        let difficulty = CatchGradualDifficulty::checked_new(difficulty, map)?;
 
         Ok(Self { difficulty })
     }
@@ -115,7 +124,7 @@ impl CatchGradualPerformance {
     ///
     /// Note that the count is zero-indexed, so `n=0` will process 1 object,
     /// `n=1` will process 2, and so on.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc, reason = "unreachable")]
     pub fn nth(&mut self, state: CatchScoreState, n: usize) -> Option<CatchPerformanceAttributes> {
         let performance = self
             .difficulty
@@ -131,7 +140,7 @@ impl CatchGradualPerformance {
     }
 
     /// Returns the amount of remaining objects.
-    #[allow(clippy::len_without_is_empty)]
+    #[expect(clippy::len_without_is_empty, reason = "TODO")]
     pub fn len(&self) -> usize {
         self.difficulty.len()
     }
@@ -139,7 +148,7 @@ impl CatchGradualPerformance {
 
 #[cfg(test)]
 mod tests {
-    use crate::{catch::CatchPerformance, Beatmap};
+    use crate::{Beatmap, catch::CatchPerformance};
 
     use super::*;
 
@@ -156,7 +165,7 @@ mod tests {
         let mut state = CatchScoreState::default();
 
         for i in 1.. {
-            state.misses += 1;
+            state.hitresults.misses += 1;
 
             let Some(next_gradual) = gradual.next(state.clone()) else {
                 assert_eq!(i, 731);

@@ -1,21 +1,24 @@
-/// Aggregation for a score's current state.
+/// osu!mania hitresults.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ManiaScoreState {
-    /// Amount of current 320s.
+pub struct ManiaHitResults {
+    /// Amount of 320s.
     pub n320: u32,
-    /// Amount of current 300s.
+    /// Amount of 300s.
     pub n300: u32,
-    /// Amount of current 200s.
+    /// Amount of 200s.
     pub n200: u32,
-    /// Amount of current 100s.
+    /// Amount of 100s.
     pub n100: u32,
-    /// Amount of current 50s.
+    /// Amount of 50s.
     pub n50: u32,
-    /// Amount of current misses.
+    /// Amount of misses.
     pub misses: u32,
 }
 
-impl ManiaScoreState {
+/// Aggregation for a score's current state.
+pub type ManiaScoreState = ManiaHitResults;
+
+impl ManiaHitResults {
     /// Create a new empty score state.
     pub const fn new() -> Self {
         Self {
@@ -34,21 +37,28 @@ impl ManiaScoreState {
     }
 
     /// Calculate the accuracy between `0.0` and `1.0` for this state.
-    pub fn accuracy(&self) -> f64 {
+    pub fn accuracy(&self, classic: bool) -> f64 {
         let total_hits = self.total_hits();
 
         if total_hits == 0 {
             return 0.0;
         }
 
-        let numerator = 6 * (self.n320 + self.n300) + 4 * self.n200 + 2 * self.n100 + self.n50;
-        let denominator = 6 * total_hits;
+        let perfect_weight = if classic { 60 } else { 61 };
+
+        let numerator = perfect_weight * self.n320
+            + 60 * self.n300
+            + 40 * self.n200
+            + 20 * self.n100
+            + 10 * self.n50;
+
+        let denominator = perfect_weight * total_hits;
 
         f64::from(numerator) / f64::from(denominator)
     }
 }
 
-impl Default for ManiaScoreState {
+impl Default for ManiaHitResults {
     fn default() -> Self {
         Self::new()
     }

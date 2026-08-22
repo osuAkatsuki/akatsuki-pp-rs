@@ -3,20 +3,22 @@ use std::{cmp, mem};
 use rosu_map::section::general::GameMode;
 
 use crate::{
-    any::difficulty::skills::Skill,
+    Beatmap, Difficulty,
+    any::{CalculateError, difficulty::skills::StrainSkill},
     model::mode::ConvertError,
     osu::{
         convert::convert_objects,
+        legacy_score_simulator::gradual::GradualLegacyScoreSimulator,
         object::{OsuObject, OsuObjectKind},
+        utils::legacy_score::GradualNestedScorePerObject,
     },
-    Beatmap, Difficulty,
 };
 
 use self::osu_objects::OsuObjects;
 
 use super::{
-    object::OsuDifficultyObject, skills::OsuSkills, DifficultyValues, OsuDifficultyAttributes,
-    OsuDifficultySetup,
+    DifficultyValues, OsuDifficultyAttributes, OsuDifficultySetup, object::OsuDifficultyObject,
+    skills::OsuSkills,
 };
 
 /// Gradually calculate the difficulty attributes of an osu!standard map.
@@ -62,6 +64,9 @@ pub struct OsuGradualDifficulty {
     // `osu_objects` will immediately invalidate `diff_objects`.
     diff_objects: Box<[OsuDifficultyObject<'static>]>,
     osu_objects: OsuObjects,
+    // Boxed to reduce the field's size
+    score_simulator: Box<GradualLegacyScoreSimulator>,
+    nested_score: GradualNestedScorePerObject,
     // Additional safety measure that this type can't be cloned as it would
     // invalidate `diff_objects`.
     _not_clonable: NotClonable,
@@ -72,55 +77,18 @@ struct NotClonable;
 impl OsuGradualDifficulty {
     /// Create a new difficulty attributes iterator for osu!standard maps.
     pub fn new(difficulty: Difficulty, map: &Beatmap) -> Result<Self, ConvertError> {
-        let mods = difficulty.get_mods();
-        let map = map.convert_ref(GameMode::Osu, mods)?;
+        let map = super::prepare_map(&difficulty, map)?;
 
-        let OsuDifficultySetup {
-            scaling_factor,
-            map_attrs,
-            mut attrs,
-            time_preempt,
-        } = OsuDifficultySetup::new(&difficulty, &map);
+        Ok(new(difficulty, &map))
+    }
 
-        let osu_objects = convert_objects(
-            &map,
-            &scaling_factor,
-            mods.reflection(),
-            time_preempt,
-            map.hit_objects.len(),
-            &mut attrs,
-        );
+    /// Same as [`OsuGradualDifficulty::new`] but verifies that the map is not
+    /// suspicious.
+    pub fn checked_new(difficulty: Difficulty, map: &Beatmap) -> Result<Self, CalculateError> {
+        let map = super::prepare_map(&difficulty, map)?;
+        map.check_suspicion()?;
 
-        attrs.n_circles = 0;
-        attrs.n_sliders = 0;
-        attrs.n_large_ticks = 0;
-        attrs.n_spinners = 0;
-        attrs.max_combo = 0;
-
-        if let Some(h) = osu_objects.first() {
-            Self::increment_combo(h, &mut attrs);
-        }
-
-        let mut osu_objects = OsuObjects::new(osu_objects);
-
-        let diff_objects = DifficultyValues::create_difficulty_objects(
-            &difficulty,
-            &scaling_factor,
-            osu_objects.iter_mut(),
-        );
-
-        let skills = OsuSkills::new(mods, &scaling_factor, &map_attrs, time_preempt);
-        let diff_objects = extend_lifetime(diff_objects.into_boxed_slice());
-
-        Ok(Self {
-            idx: 0,
-            difficulty,
-            attrs,
-            skills,
-            diff_objects,
-            osu_objects,
-            _not_clonable: NotClonable,
-        })
+        Ok(new(difficulty, &map))
     }
 
     fn increment_combo(h: &OsuObject, attrs: &mut OsuDifficultyAttributes) {
@@ -138,6 +106,66 @@ impl OsuGradualDifficulty {
     }
 }
 
+fn new(difficulty: Difficulty, map: &Beatmap) -> OsuGradualDifficulty {
+    debug_assert_eq!(map.mode, GameMode::Osu);
+
+    let mods = difficulty.get_mods();
+
+    let OsuDifficultySetup {
+        scaling_factor,
+        map_attrs,
+        mut attrs,
+        time_preempt,
+    } = OsuDifficultySetup::new(&difficulty, map);
+
+    let osu_objects = convert_objects(
+        map,
+        &scaling_factor,
+        mods.reflection(),
+        time_preempt,
+        map.hit_objects.len(),
+        &mut attrs,
+    );
+
+    attrs.n_circles = 0;
+    attrs.n_sliders = 0;
+    attrs.n_large_ticks = 0;
+    attrs.n_spinners = 0;
+    attrs.max_combo = 0;
+
+    if let Some(h) = osu_objects.first() {
+        OsuGradualDifficulty::increment_combo(h, &mut attrs);
+    }
+
+    let mut osu_objects = OsuObjects::new(osu_objects);
+
+    let diff_objects = DifficultyValues::create_difficulty_objects(
+        &difficulty,
+        &scaling_factor,
+        osu_objects.iter_mut(),
+    );
+
+    let great_hit_window = map_attrs.hit_windows().od_great.unwrap_or(0.0);
+
+    let skills = OsuSkills::new(mods, &scaling_factor, great_hit_window, time_preempt);
+    let diff_objects = extend_lifetime(diff_objects.into_boxed_slice());
+
+    let score_simulator = GradualLegacyScoreSimulator::new(map, map_attrs);
+    let nested_score = GradualNestedScorePerObject::default();
+
+    OsuGradualDifficulty {
+        idx: 0,
+        difficulty,
+        attrs,
+        skills,
+        diff_objects,
+        osu_objects,
+        score_simulator: Box::new(score_simulator),
+        nested_score,
+        _not_clonable: NotClonable,
+    }
+}
+
 fn extend_lifetime(
     diff_objects: Box<[OsuDifficultyObject<'_>]>,
 ) -> Box<[OsuDifficultyObject<'static>]> {
@@ -151,6 +179,20 @@ impl Iterator for OsuGradualDifficulty {
     type Item = OsuDifficultyAttributes;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(h) = self.osu_objects.get(self.idx) {
+            let score_attrs = self.score_simulator.simulate_next(h);
+            self.attrs.maximum_legacy_combo_score = score_attrs.combo_score as f64;
+
+            // Importantly, the `score_multipler` method is called *after*
+            // `simulate_next` so that the simulator's internal fields have
+            // been adjusted to the current object.
+            self.attrs.legacy_score_base_multiplier =
+                self.score_simulator.score_multiplier(h, false);
+
+            let slider_nested_score_per_object = self.nested_score.calculate_next(h);
+            self.attrs.nested_score_per_object = slider_nested_score_per_object;
+        }
+
         // The first difficulty object belongs to the second note since each
         // difficulty object requires the current and the last note. Hence, if
         // we're still on the first object, we don't have a difficulty object
@@ -158,10 +200,10 @@ impl Iterator for OsuGradualDifficulty {
         if self.idx > 0 {
             let curr = self.diff_objects.get(self.idx - 1)?;
 
-            Skill::new(&mut self.skills.aim, &self.diff_objects).process(curr);
-            Skill::new(&mut self.skills.aim_no_sliders, &self.diff_objects).process(curr);
-            Skill::new(&mut self.skills.speed, &self.diff_objects).process(curr);
-            Skill::new(&mut self.skills.flashlight, &self.diff_objects).process(curr);
+            self.skills.aim.process(curr, &self.diff_objects);
+            self.skills.aim_no_sliders.process(curr, &self.diff_objects);
+            self.skills.speed.process(curr, &self.diff_objects);
+            self.skills.flashlight.process(curr, &self.diff_objects);
 
             Self::increment_combo(curr.base, &mut self.attrs);
         } else if self.osu_objects.is_empty() {
@@ -172,21 +214,7 @@ impl Iterator for OsuGradualDifficulty {
 
         let mut attrs = self.attrs.clone();
 
-        let aim_difficulty_value = self.skills.aim.as_difficulty_value();
-        let aim_no_sliders_difficulty_value = self.skills.aim_no_sliders.as_difficulty_value();
-        let speed_relevant_note_count = self.skills.speed.relevant_note_count();
-        let speed_difficulty_value = self.skills.speed.as_difficulty_value();
-        let flashlight_difficulty_value = self.skills.flashlight.as_difficulty_value();
-
-        DifficultyValues::eval(
-            &mut attrs,
-            self.difficulty.get_mods(),
-            &aim_difficulty_value,
-            &aim_no_sliders_difficulty_value,
-            &speed_difficulty_value,
-            speed_relevant_note_count,
-            flashlight_difficulty_value,
-        );
+        DifficultyValues::eval(&mut attrs, self.difficulty.get_mods(), &self.skills);
 
         Some(attrs)
     }
@@ -204,21 +232,32 @@ impl Iterator for OsuGradualDifficulty {
 
         // The first note has no difficulty object
         if self.idx == 0 && take > 0 {
+            if let Some(h) = self.osu_objects.get(self.idx) {
+                let score_attrs = self.score_simulator.simulate_next(h);
+                self.attrs.maximum_legacy_combo_score = score_attrs.combo_score as f64;
+                self.attrs.legacy_score_base_multiplier =
+                    self.score_simulator.score_multiplier(h, false);
+
+                let slider_nested_score_per_object = self.nested_score.calculate_next(h);
+                self.attrs.nested_score_per_object = slider_nested_score_per_object;
+            }
+
             take -= 1;
             self.idx += 1;
         }
 
-        let mut aim = Skill::new(&mut self.skills.aim, &self.diff_objects);
-        let mut aim_no_sliders = Skill::new(&mut self.skills.aim_no_sliders, &self.diff_objects);
-        let mut speed = Skill::new(&mut self.skills.speed, &self.diff_objects);
-        let mut flashlight = Skill::new(&mut self.skills.flashlight, &self.diff_objects);
-
         for curr in skip_iter.take(take) {
-            aim.process(curr);
-            aim_no_sliders.process(curr);
-            speed.process(curr);
-            flashlight.process(curr);
+            if let Some(h) = self.osu_objects.get(self.idx) {
+                let score_attrs = self.score_simulator.simulate_next(h);
+                self.attrs.maximum_legacy_combo_score = score_attrs.combo_score as f64;
+                self.attrs.legacy_score_base_multiplier =
+                    self.score_simulator.score_multiplier(h, false);
 
+                let slider_nested_score_per_object = self.nested_score.calculate_next(h);
+                self.attrs.nested_score_per_object = slider_nested_score_per_object;
+            }
+
+            self.skills.process(curr, &self.diff_objects);
             Self::increment_combo(curr.base, &mut self.attrs);
             self.idx += 1;
         }
@@ -248,6 +287,10 @@ mod osu_objects {
             Self { objects }
         }
 
+        pub(super) fn get(&self, idx: usize) -> Option<&OsuObject> {
+            self.objects.get(idx)
+        }
+
         pub(super) const fn is_empty(&self) -> bool {
             self.objects.is_empty()
         }
@@ -260,7 +303,7 @@ mod osu_objects {
 
 #[cfg(test)]
 mod tests {
-    use crate::{osu::Osu, Beatmap};
+    use crate::{Beatmap, osu::Osu};
 
     use super::*;
 

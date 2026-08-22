@@ -4,7 +4,7 @@ use rosu_map::section::hit_objects::hit_samples::HitSoundType;
 
 use crate::{
     mania::{
-        convert::{pattern::Pattern, pattern_type::PatternType, PrevValues},
+        convert::{PrevValues, pattern::Pattern, pattern_type::PatternType},
         object::ManiaObject,
     },
     model::{
@@ -12,7 +12,7 @@ use crate::{
         control_point::{EffectPoint, TimingPoint},
         hit_object::HitObject,
     },
-    util::random::Random,
+    util::random::osu::Random,
 };
 
 use super::PatternGenerator;

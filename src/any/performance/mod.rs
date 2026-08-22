@@ -1,8 +1,13 @@
 use rosu_map::section::general::GameMode;
 
 use crate::{
-    catch::CatchPerformance, mania::ManiaPerformance, osu::OsuPerformance, taiko::TaikoPerformance,
     Difficulty, GameMods,
+    any::{CalculateError, HitResultGenerator},
+    catch::{Catch, CatchPerformance},
+    mania::{Mania, ManiaPerformance},
+    model::beatmap::TooSuspicious,
+    osu::{Osu, OsuPerformance},
+    taiko::{Taiko, TaikoPerformance},
 };
 
 use self::into::IntoPerformance;
@@ -10,7 +15,21 @@ use self::into::IntoPerformance;
 use super::{attributes::PerformanceAttributes, score_state::ScoreState};
 
 pub mod gradual;
+pub mod inspectable;
 pub mod into;
+
+const NO_CONVERSION_REQUIRED: &str = "no conversion required";
+
+macro_rules! forward_to_variants {
+    ( $self:ident => |$perf:ident| $enum:ident($expr:expr) ) => {
+        match $self {
+            Self::Osu($perf) => $enum::Osu($expr),
+            Self::Taiko($perf) => $enum::Taiko($expr),
+            Self::Catch($perf) => $enum::Catch($expr),
+            Self::Mania($perf) => $enum::Mania($expr),
+        }
+    };
+}
 
 /// Performance calculator on maps of any mode.
 #[derive(Clone, Debug, PartialEq)]
@@ -49,22 +68,29 @@ impl<'map> Performance<'map> {
 
     /// Consume the performance calculator and calculate
     /// performance attributes for the given parameters.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc, reason = "unreachable")]
     pub fn calculate(self) -> PerformanceAttributes {
-        match self {
-            Self::Osu(o) => {
-                PerformanceAttributes::Osu(o.calculate().expect("no conversion required"))
-            }
-            Self::Taiko(t) => {
-                PerformanceAttributes::Taiko(t.calculate().expect("no conversion required"))
-            }
-            Self::Catch(f) => {
-                PerformanceAttributes::Catch(f.calculate().expect("no conversion required"))
-            }
-            Self::Mania(m) => {
-                PerformanceAttributes::Mania(m.calculate().expect("no conversion required"))
-            }
-        }
+        forward_to_variants!(self => |perf| PerformanceAttributes(
+            perf.calculate().expect(NO_CONVERSION_REQUIRED)
+        ))
+    }
+
+    /// Same as [`Performance::calculate`] but verifies that the map is not too
+    /// suspicious.
+    pub fn checked_calculate(self) -> Result<PerformanceAttributes, TooSuspicious> {
+        let map_err = |err| match err {
+            CalculateError::Suspicion(err) => err,
+            CalculateError::Convert(_) => unreachable!("{}", NO_CONVERSION_REQUIRED),
+        };
+
+        let this = match self {
+            Self::Osu(o) => PerformanceAttributes::Osu(o.checked_calculate().map_err(map_err)?),
+            Self::Taiko(t) => PerformanceAttributes::Taiko(t.checked_calculate().map_err(map_err)?),
+            Self::Catch(f) => PerformanceAttributes::Catch(f.checked_calculate().map_err(map_err)?),
+            Self::Mania(m) => PerformanceAttributes::Mania(m.checked_calculate().map_err(map_err)?),
+        };
+
+        Ok(this)
     }
 
     /// Attempt to convert the map to the specified mode.
@@ -77,8 +103,7 @@ impl<'map> Performance<'map> {
     /// [`mode_or_ignore`] instead.
     ///
     /// [`mode_or_ignore`]: Self::mode_or_ignore
-    // Both variants have the same size
-    #[allow(clippy::result_large_err)]
+    #[expect(clippy::result_large_err, reason = "both variants have the same size")]
     pub fn try_mode(self, mode: GameMode) -> Result<Self, Self> {
         match (self, mode) {
             (Self::Osu(o), _) => o.try_mode(mode).map_err(Self::Osu),
@@ -117,22 +142,12 @@ impl<'map> Performance<'map> {
     ///
     /// See <https://github.com/ppy/osu-api/wiki#mods>
     pub fn mods(self, mods: impl Into<GameMods>) -> Self {
-        match self {
-            Self::Osu(o) => Self::Osu(o.mods(mods)),
-            Self::Taiko(t) => Self::Taiko(t.mods(mods)),
-            Self::Catch(f) => Self::Catch(f.mods(mods)),
-            Self::Mania(m) => Self::Mania(m.mods(mods)),
-        }
+        forward_to_variants!(self => |perf| Self(perf.mods(mods)))
     }
 
     /// Use the specified settings of the given [`Difficulty`].
     pub fn difficulty(self, difficulty: Difficulty) -> Self {
-        match self {
-            Self::Osu(o) => Self::Osu(o.difficulty(difficulty)),
-            Self::Taiko(t) => Self::Taiko(t.difficulty(difficulty)),
-            Self::Catch(f) => Self::Catch(f.difficulty(difficulty)),
-            Self::Mania(m) => Self::Mania(m.difficulty(difficulty)),
-        }
+        forward_to_variants!(self => |perf| Self(perf.difficulty(difficulty)))
     }
 
     /// Amount of passed objects for partial plays, e.g. a fail.
@@ -143,12 +158,7 @@ impl<'map> Performance<'map> {
     ///
     /// [`GradualPerformance`]: crate::GradualPerformance
     pub fn passed_objects(self, passed_objects: u32) -> Self {
-        match self {
-            Self::Osu(o) => Self::Osu(o.passed_objects(passed_objects)),
-            Self::Taiko(t) => Self::Taiko(t.passed_objects(passed_objects)),
-            Self::Catch(f) => Self::Catch(f.passed_objects(passed_objects)),
-            Self::Mania(m) => Self::Mania(m.passed_objects(passed_objects)),
-        }
+        forward_to_variants!(self => |perf| Self(perf.passed_objects(passed_objects)))
     }
 
     /// Adjust the clock rate used in the calculation.
@@ -160,29 +170,24 @@ impl<'map> Performance<'map> {
     /// | :-----: | :-----: |
     /// | 0.01    | 100     |
     pub fn clock_rate(self, clock_rate: f64) -> Self {
-        match self {
-            Self::Osu(o) => Self::Osu(o.clock_rate(clock_rate)),
-            Self::Taiko(t) => Self::Taiko(t.clock_rate(clock_rate)),
-            Self::Catch(f) => Self::Catch(f.clock_rate(clock_rate)),
-            Self::Mania(m) => Self::Mania(m.clock_rate(clock_rate)),
-        }
+        forward_to_variants!(self => |perf| Self(perf.clock_rate(clock_rate)))
     }
 
     /// Override a beatmap's set AR.
     ///
     /// Only relevant for osu! and osu!catch.
     ///
-    /// `with_mods` determines if the given value should be used before
+    /// `fixed` determines if the given value should be used before
     /// or after accounting for mods, e.g. on `true` the value will be
     /// used as is and on `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn ar(self, ar: f32, with_mods: bool) -> Self {
+    pub fn ar(self, ar: f32, fixed: bool) -> Self {
         match self {
-            Self::Osu(o) => Self::Osu(o.ar(ar, with_mods)),
-            Self::Catch(c) => Self::Catch(c.ar(ar, with_mods)),
+            Self::Osu(o) => Self::Osu(o.ar(ar, fixed)),
+            Self::Catch(c) => Self::Catch(c.ar(ar, fixed)),
             Self::Taiko(_) | Self::Mania(_) => self,
         }
     }
@@ -191,55 +196,45 @@ impl<'map> Performance<'map> {
     ///
     /// Only relevant for osu! and osu!catch.
     ///
-    /// `with_mods` determines if the given value should be used before
+    /// `fixed` determines if the given value should be used before
     /// or after accounting for mods, e.g. on `true` the value will be
     /// used as is and on `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn cs(self, cs: f32, with_mods: bool) -> Self {
+    pub fn cs(self, cs: f32, fixed: bool) -> Self {
         match self {
-            Self::Osu(o) => Self::Osu(o.cs(cs, with_mods)),
-            Self::Catch(c) => Self::Catch(c.cs(cs, with_mods)),
+            Self::Osu(o) => Self::Osu(o.cs(cs, fixed)),
+            Self::Catch(c) => Self::Catch(c.cs(cs, fixed)),
             Self::Taiko(_) | Self::Mania(_) => self,
         }
     }
 
     /// Override a beatmap's set HP.
     ///
-    /// `with_mods` determines if the given value should be used before
+    /// `fixed` determines if the given value should be used before
     /// or after accounting for mods, e.g. on `true` the value will be
     /// used as is and on `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn hp(self, hp: f32, with_mods: bool) -> Self {
-        match self {
-            Self::Osu(o) => Self::Osu(o.hp(hp, with_mods)),
-            Self::Taiko(t) => Self::Taiko(t.hp(hp, with_mods)),
-            Self::Catch(c) => Self::Catch(c.hp(hp, with_mods)),
-            Self::Mania(m) => Self::Mania(m.hp(hp, with_mods)),
-        }
+    pub fn hp(self, hp: f32, fixed: bool) -> Self {
+        forward_to_variants!(self => |perf| Self(perf.hp(hp, fixed)))
     }
 
     /// Override a beatmap's set OD.
     ///
-    /// `with_mods` determines if the given value should be used before
+    /// `fixed` determines if the given value should be used before
     /// or after accounting for mods, e.g. on `true` the value will be
     /// used as is and on `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn od(self, od: f32, with_mods: bool) -> Self {
-        match self {
-            Self::Osu(o) => Self::Osu(o.od(od, with_mods)),
-            Self::Taiko(t) => Self::Taiko(t.od(od, with_mods)),
-            Self::Catch(c) => Self::Catch(c.od(od, with_mods)),
-            Self::Mania(m) => Self::Mania(m.od(od, with_mods)),
-        }
+    pub fn od(self, od: f32, fixed: bool) -> Self {
+        forward_to_variants!(self => |perf| Self(perf.od(od, fixed)))
     }
 
     /// Adjust patterns as if the HR mod is enabled.
@@ -255,32 +250,17 @@ impl<'map> Performance<'map> {
 
     /// Provide parameters through a [`ScoreState`].
     pub fn state(self, state: ScoreState) -> Self {
-        match self {
-            Self::Osu(o) => Self::Osu(o.state(state.into())),
-            Self::Taiko(t) => Self::Taiko(t.state(state.into())),
-            Self::Catch(f) => Self::Catch(f.state(state.into())),
-            Self::Mania(m) => Self::Mania(m.state(state.into())),
-        }
+        forward_to_variants!(self => |perf| Self(perf.state(state.into())))
     }
 
     /// Set the accuracy between `0.0` and `100.0`.
     pub fn accuracy(self, acc: f64) -> Self {
-        match self {
-            Self::Osu(o) => Self::Osu(o.accuracy(acc)),
-            Self::Taiko(t) => Self::Taiko(t.accuracy(acc)),
-            Self::Catch(f) => Self::Catch(f.accuracy(acc)),
-            Self::Mania(m) => Self::Mania(m.accuracy(acc)),
-        }
+        forward_to_variants!(self => |perf| Self(perf.accuracy(acc)))
     }
 
     /// Specify the amount of misses of a play.
     pub fn misses(self, n_misses: u32) -> Self {
-        match self {
-            Self::Osu(o) => Self::Osu(o.misses(n_misses)),
-            Self::Taiko(t) => Self::Taiko(t.misses(n_misses)),
-            Self::Catch(f) => Self::Catch(f.misses(n_misses)),
-            Self::Mania(m) => Self::Mania(m.misses(n_misses)),
-        }
+        forward_to_variants!(self => |perf| Self(perf.misses(n_misses)))
     }
 
     /// Specify the max combo of the play.
@@ -295,9 +275,7 @@ impl<'map> Performance<'map> {
         }
     }
 
-    /// Specify how hitresults should be generated.
-    ///
-    /// Defauls to [`HitResultPriority::BestCase`].
+    /// Specify the priority of hitresults.
     pub fn hitresult_priority(self, priority: HitResultPriority) -> Self {
         match self {
             Self::Osu(o) => Self::Osu(o.hitresult_priority(priority)),
@@ -305,6 +283,29 @@ impl<'map> Performance<'map> {
             Self::Catch(_) => self,
             Self::Mania(m) => Self::Mania(m.hitresult_priority(priority)),
         }
+    }
+
+    /// Specify how hitresults should be generated.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rosu_pp::any::hitresult_generator::{Closest, Composable, Fast};
+    /// # use rosu_pp::Performance;
+    ///
+    /// # let map = rosu_pp::catch::CatchDifficultyAttributes::default();
+    /// let attrs = Performance::new(map)
+    ///     // Use `Closest` for osu!, taiko, and catch, and `Fast` for mania
+    ///     .hitresult_generator::<Composable<Closest, Closest, Closest, Fast>>()
+    ///     .calculate();
+    /// ```
+    pub fn hitresult_generator<H>(self) -> Self
+    where
+        H: HitResultGenerator<Osu>
+            + HitResultGenerator<Taiko>
+            + HitResultGenerator<Catch>
+            + HitResultGenerator<Mania>,
+    {
+        forward_to_variants!(self => |perf| Self(perf.hitresult_generator::<H>()))
     }
 
     /// Whether the calculated attributes belong to an osu!lazer or osu!stable
@@ -330,13 +331,25 @@ impl<'map> Performance<'map> {
     ///
     /// The meaning depends on the kind of score:
     /// - if set on osu!stable, this value is irrelevant and can be `0`
-    /// - if set on osu!lazer *without* `CL`, this value is the amount of hit
-    ///   slider ticks and repeats
-    /// - if set on osu!lazer *with* `CL`, this value is the amount of hit
-    ///   slider heads, ticks, and repeats
+    /// - if set on osu!lazer *with* slider accuracy, this value is the amount
+    ///   of hit slider ticks and repeats
+    /// - if set on osu!lazer *without* slider accuracy, this value is the
+    ///   amount of hit slider heads, ticks, and repeats
     pub fn large_tick_hits(self, large_tick_hits: u32) -> Self {
         if let Self::Osu(osu) = self {
-            Self::Osu(osu.n_large_ticks(large_tick_hits))
+            Self::Osu(osu.large_tick_hits(large_tick_hits))
+        } else {
+            self
+        }
+    }
+
+    /// Specify the amount of "small tick" hits.
+    ///
+    /// Only relevant for osu!standard lazer scores without slider accuracy. In
+    /// that case, this value is the amount of slider tail hits.
+    pub fn small_tick_hits(self, small_tick_hits: u32) -> Self {
+        if let Self::Osu(osu) = self {
+            Self::Osu(osu.small_tick_hits(small_tick_hits))
         } else {
             self
         }
@@ -344,13 +357,10 @@ impl<'map> Performance<'map> {
 
     /// Specify the amount of hit slider ends.
     ///
-    /// Only relevant for osu!standard.
-    ///
-    /// osu! calls this value "slider tail hits" without the classic
-    /// mod and "small tick hits" with the classic mod.
-    pub fn n_slider_ends(self, n_slider_ends: u32) -> Self {
+    /// Only relevant for osu!standard lazer scores with slider accuracy.
+    pub fn slider_end_hits(self, slider_end_hits: u32) -> Self {
         if let Self::Osu(osu) = self {
-            Self::Osu(osu.n_slider_ends(n_slider_ends))
+            Self::Osu(osu.slider_end_hits(slider_end_hits))
         } else {
             self
         }
@@ -411,14 +421,45 @@ impl<'map> Performance<'map> {
         }
     }
 
+    /// Specify the legacy total score.
+    ///
+    /// Only relevant for osu!standard.
+    pub fn legacy_total_score(self, legacy_total_score: u32) -> Self {
+        match self {
+            Self::Osu(o) => Self::Osu(o.legacy_total_score(legacy_total_score)),
+            _ => self,
+        }
+    }
+
     /// Create the [`ScoreState`] that will be used for performance calculation.
-    #[allow(clippy::missing_panics_doc)]
+    ///
+    /// If this [`Performance`] contained a [`Beatmap`], it will be replaced
+    /// by the difficulty attributes of the mode.
+    ///
+    /// [`Beatmap`]: crate::Beatmap
+    #[expect(clippy::missing_panics_doc, reason = "unreachable")]
     pub fn generate_state(&mut self) -> ScoreState {
         match self {
-            Self::Osu(o) => o.generate_state().expect("no conversion required").into(),
-            Self::Taiko(t) => t.generate_state().expect("no conversion required").into(),
-            Self::Catch(f) => f.generate_state().expect("no conversion required").into(),
-            Self::Mania(m) => m.generate_state().expect("no conversion required").into(),
+            Self::Osu(o) => o.generate_state().expect(NO_CONVERSION_REQUIRED).into(),
+            Self::Taiko(t) => t.generate_state().expect(NO_CONVERSION_REQUIRED).into(),
+            Self::Catch(f) => f.generate_state().expect(NO_CONVERSION_REQUIRED).into(),
+            Self::Mania(m) => m.generate_state().expect(NO_CONVERSION_REQUIRED).into(),
+        }
+    }
+
+    /// Same as [`Performance::generate_state`] but verifies that the map was
+    /// not suspicious.
+    pub fn checked_generate_state(&mut self) -> Result<ScoreState, TooSuspicious> {
+        let map_err = |err| match err {
+            CalculateError::Suspicion(err) => err,
+            CalculateError::Convert(_) => unreachable!("{}", NO_CONVERSION_REQUIRED),
+        };
+
+        match self {
+            Self::Osu(o) => o.checked_generate_state().map(From::from).map_err(map_err),
+            Self::Taiko(t) => t.checked_generate_state().map(From::from).map_err(map_err),
+            Self::Catch(f) => f.checked_generate_state().map(From::from).map_err(map_err),
+            Self::Mania(m) => m.checked_generate_state().map(From::from).map_err(map_err),
         }
     }
 }
@@ -451,12 +492,12 @@ impl<'a, T: IntoPerformance<'a>> From<T> for Performance<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
+        Beatmap,
         any::DifficultyAttributes,
         catch::{CatchDifficultyAttributes, CatchPerformanceAttributes},
         mania::{ManiaDifficultyAttributes, ManiaPerformanceAttributes},
         osu::{OsuDifficultyAttributes, OsuPerformanceAttributes},
         taiko::{TaikoDifficultyAttributes, TaikoPerformanceAttributes},
-        Beatmap,
     };
 
     use super::*;

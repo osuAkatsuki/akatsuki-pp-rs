@@ -1,4 +1,6 @@
-use crate::{model::mode::ConvertError, osu::OsuGradualDifficulty, Beatmap, Difficulty};
+use crate::{
+    Beatmap, Difficulty, any::CalculateError, model::mode::ConvertError, osu::OsuGradualDifficulty,
+};
 
 use super::{OsuPerformanceAttributes, OsuScoreState};
 
@@ -28,7 +30,7 @@ use super::{OsuPerformanceAttributes, OsuScoreState};
 ///
 /// // The first 10 hits are 300s and there are no sliders for additional combo
 /// for _ in 0..10 {
-///     state.n300 += 1;
+///     state.hitresults.n300 += 1;
 ///     state.max_combo += 1;
 ///
 ///     let attrs = gradual.next(state.clone()).unwrap();
@@ -37,21 +39,21 @@ use super::{OsuPerformanceAttributes, OsuScoreState};
 ///
 /// // Then comes a miss. Note that state's max combo won't be incremented for
 /// // the next few objects because the combo is reset.
-/// state.misses += 1;
+/// state.hitresults.misses += 1;
 /// let attrs = gradual.next(state.clone()).unwrap();
 /// println!("PP: {}", attrs.pp);
 ///
 /// // The next 10 objects will be a mixture of 300s, 100s, and 50s.
 /// // Notice how all 10 objects will be processed in one go.
-/// state.n300 += 2;
-/// state.n100 += 7;
-/// state.n50 += 1;
+/// state.hitresults.n300 += 2;
+/// state.hitresults.n100 += 7;
+/// state.hitresults.n50 += 1;
 /// // The `nth` method takes a zero-based value.
 /// let attrs = gradual.nth(state.clone(), 9).unwrap();
 /// println!("PP: {}", attrs.pp);
 ///
 /// // Now comes another 300. Note that the max combo gets incremented again.
-/// state.n300 += 1;
+/// state.hitresults.n300 += 1;
 /// state.max_combo += 1;
 /// let attrs = gradual.next(state.clone()).unwrap();
 /// println!("PP: {}", attrs.pp);
@@ -59,10 +61,10 @@ use super::{OsuPerformanceAttributes, OsuScoreState};
 /// // Skip to the end
 /// # /*
 /// state.max_combo = ...
-/// state.n300 = ...
-/// state.n100 = ...
-/// state.n50 = ...
-/// state.misses = ...
+/// state.hitresults.n300 = ...
+/// state.hitresults.n100 = ...
+/// state.hitresults.n50 = ...
+/// state.hitresults.misses = ...
 /// # */
 /// let attrs = gradual.last(state.clone()).unwrap();
 /// println!("PP: {}", attrs.pp);
@@ -88,6 +90,15 @@ impl OsuGradualPerformance {
         Ok(Self { lazer, difficulty })
     }
 
+    /// Same as [`OsuGradualPerformance::new`] but verifies that the map is
+    /// not suspicious.
+    pub fn checked_new(difficulty: Difficulty, map: &Beatmap) -> Result<Self, CalculateError> {
+        let lazer = difficulty.get_lazer();
+        let difficulty = OsuGradualDifficulty::checked_new(difficulty, map)?;
+
+        Ok(Self { lazer, difficulty })
+    }
+
     /// Process the next hit object and calculate the performance attributes
     /// for the resulting score state.
     pub fn next(&mut self, state: OsuScoreState) -> Option<OsuPerformanceAttributes> {
@@ -105,7 +116,7 @@ impl OsuGradualPerformance {
     ///
     /// Note that the count is zero-indexed, so `n=0` will process 1 object,
     /// `n=1` will process 2, and so on.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc, reason = "unreachable")]
     pub fn nth(&mut self, state: OsuScoreState, n: usize) -> Option<OsuPerformanceAttributes> {
         let performance = self
             .difficulty
@@ -122,7 +133,7 @@ impl OsuGradualPerformance {
     }
 
     /// Returns the amount of remaining objects.
-    #[allow(clippy::len_without_is_empty)]
+    #[expect(clippy::len_without_is_empty, reason = "TODO")]
     pub fn len(&self) -> usize {
         self.difficulty.len()
     }
@@ -130,7 +141,7 @@ impl OsuGradualPerformance {
 
 #[cfg(test)]
 mod tests {
-    use crate::{osu::OsuPerformance, Beatmap};
+    use crate::{Beatmap, osu::OsuPerformance};
 
     use super::*;
 
@@ -149,32 +160,32 @@ mod tests {
         let hit_objects_len = map.hit_objects.len();
 
         for i in 1.. {
-            state.misses += 1;
+            state.hitresults.misses += 1;
 
-            let Some(next_gradual) = gradual.next(state) else {
+            let Some(next_gradual) = gradual.next(state.clone()) else {
                 assert_eq!(i, hit_objects_len + 1);
-                assert!(gradual_2nd.last(state).is_some() || hit_objects_len % 2 == 0);
-                assert!(gradual_3rd.last(state).is_some() || hit_objects_len % 3 == 0);
+                assert!(gradual_2nd.last(state.clone()).is_some() || hit_objects_len % 2 == 0);
+                assert!(gradual_3rd.last(state.clone()).is_some() || hit_objects_len % 3 == 0);
                 break;
             };
 
             if i % 2 == 0 {
-                let next_gradual_2nd = gradual_2nd.nth(state, 1).unwrap();
+                let next_gradual_2nd = gradual_2nd.nth(state.clone(), 1).unwrap();
                 assert_eq!(next_gradual, next_gradual_2nd);
             }
 
             if i % 3 == 0 {
-                let next_gradual_3rd = gradual_3rd.nth(state, 2).unwrap();
+                let next_gradual_3rd = gradual_3rd.nth(state.clone(), 2).unwrap();
                 assert_eq!(next_gradual, next_gradual_3rd);
             }
 
             let mut regular_calc = OsuPerformance::new(&map)
                 .difficulty(difficulty.clone())
                 .passed_objects(i as u32)
-                .state(state);
+                .state(state.clone());
 
             let regular_state = regular_calc.generate_state().unwrap();
-            assert_eq!(state, regular_state);
+            assert_eq!(state.clone(), regular_state);
 
             let expected = regular_calc.calculate().unwrap();
 

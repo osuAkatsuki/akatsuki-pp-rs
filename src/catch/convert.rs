@@ -1,15 +1,20 @@
+use std::borrow::Cow;
+
 use rosu_map::section::{general::GameMode, hit_objects::CurveBuffers};
 
 use crate::{
+    Difficulty,
     model::{
         beatmap::Beatmap,
         hit_object::{HitObject, HitObjectKind, HoldNote, Spinner},
+        mode::ConvertError,
         mods::Reflection,
     },
-    util::{float_ext::FloatExt, random::Random},
+    util::{float_ext::FloatExt, random::osu::Random},
 };
 
 use super::{
+    PLAYFIELD_WIDTH,
     attributes::ObjectCountBuilder,
     catcher::Catcher,
     object::{
@@ -18,12 +23,18 @@ use super::{
         juice_stream::{JuiceStream, JuiceStreamBufs, NestedJuiceStreamObjectKind},
         palpable::PalpableObject,
     },
-    PLAYFIELD_WIDTH,
 };
 
 const RNG_SEED: i32 = 1337;
 
-pub fn convert(map: &mut Beatmap) {
+pub fn prepare_map<'map>(
+    difficulty: &Difficulty,
+    map: &'map Beatmap,
+) -> Result<Cow<'map, Beatmap>, ConvertError> {
+    map.convert_ref(GameMode::Catch, difficulty.get_mods())
+}
+
+pub const fn convert(map: &mut Beatmap) {
     map.mode = GameMode::Catch;
     map.is_convert = true;
 }

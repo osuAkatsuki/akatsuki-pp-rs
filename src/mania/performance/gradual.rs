@@ -1,4 +1,7 @@
-use crate::{mania::ManiaGradualDifficulty, model::mode::ConvertError, Beatmap, Difficulty};
+use crate::{
+    Beatmap, Difficulty, any::CalculateError, mania::ManiaGradualDifficulty,
+    model::mode::ConvertError,
+};
 
 use super::{ManiaPerformanceAttributes, ManiaScoreState};
 
@@ -76,6 +79,14 @@ impl ManiaGradualPerformance {
         Ok(Self { difficulty })
     }
 
+    /// Same as [`ManiaGradualPerformance::new`] but verifies that the map is
+    /// not suspicious.
+    pub fn checked_new(difficulty: Difficulty, map: &Beatmap) -> Result<Self, CalculateError> {
+        let difficulty = ManiaGradualDifficulty::checked_new(difficulty, map)?;
+
+        Ok(Self { difficulty })
+    }
+
     /// Process the next hit object and calculate the performance attributes
     /// for the resulting score.
     pub fn next(&mut self, state: ManiaScoreState) -> Option<ManiaPerformanceAttributes> {
@@ -93,7 +104,7 @@ impl ManiaGradualPerformance {
     ///
     /// Note that the count is zero-indexed, so `n=0` will process 1 object,
     /// `n=1` will process 2, and so on.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc, reason = "unreachable")]
     pub fn nth(&mut self, state: ManiaScoreState, n: usize) -> Option<ManiaPerformanceAttributes> {
         let performance = self
             .difficulty
@@ -109,7 +120,7 @@ impl ManiaGradualPerformance {
     }
 
     /// Returns the amount of remaining objects.
-    #[allow(clippy::len_without_is_empty)]
+    #[expect(clippy::len_without_is_empty, reason = "TODO")]
     pub fn len(&self) -> usize {
         self.difficulty.len()
     }
@@ -117,13 +128,16 @@ impl ManiaGradualPerformance {
 
 #[cfg(test)]
 mod tests {
-    use crate::{mania::ManiaPerformance, Beatmap};
+    use crate::{Beatmap, mania::ManiaPerformance};
 
     use super::*;
 
     #[test]
     fn next_and_nth() {
         let map = Beatmap::from_path("./resources/1638954.osu").unwrap();
+
+        let mut cloned = map.clone();
+        cloned.mania_hitobjects_legacy_sort();
 
         let difficulty = Difficulty::new().mods(88); // HDHRDT
 
@@ -139,7 +153,7 @@ mod tests {
             state.misses += 1;
 
             // Hold notes award two hitresults in lazer
-            if let Some(h) = map.hit_objects.get(i - 1) {
+            if let Some(h) = cloned.hit_objects.get(i - 1) {
                 if !h.is_circle() {
                     state.n320 += 1;
                 }
@@ -149,6 +163,7 @@ mod tests {
                 assert_eq!(i, hit_objects_len + 1);
                 assert!(gradual_2nd.last(state.clone()).is_some() || hit_objects_len % 2 == 0);
                 assert!(gradual_3rd.last(state.clone()).is_some() || hit_objects_len % 3 == 0);
+
                 break;
             };
 
@@ -168,11 +183,11 @@ mod tests {
                 .state(state.clone());
 
             let regular_state = regular_calc.generate_state().unwrap();
-            assert_eq!(state, regular_state);
+            assert_eq!(state, regular_state, "i={i}");
 
             let expected = regular_calc.calculate().unwrap();
 
-            assert_eq!(next_gradual, expected);
+            assert_eq!(next_gradual, expected, "i={i}");
         }
     }
 }

@@ -1,13 +1,16 @@
 use rosu_map::section::general::GameMode;
 
 use crate::{
+    Beatmap, Difficulty,
     any::{PerformanceAttributes, ScoreState},
     catch::{Catch, CatchGradualPerformance},
     mania::{Mania, ManiaGradualPerformance},
-    model::mode::{ConvertError, IGameMode},
+    model::{
+        beatmap::TooSuspicious,
+        mode::{ConvertError, IGameMode},
+    },
     osu::{Osu, OsuGradualPerformance},
     taiko::{Taiko, TaikoGradualPerformance},
-    Beatmap, Difficulty,
 };
 
 /// Gradually calculate the performance attributes on maps of any mode.
@@ -88,9 +91,6 @@ use crate::{
 /// [`next`]: GradualPerformance::next
 /// [`nth`]: GradualPerformance::nth
 /// [`GradualDifficulty`]: crate::GradualDifficulty
-// 504 vs 184 bytes is an acceptable difference and the Osu variant (424 bytes)
-// is likely the most used one anyway.
-#[allow(clippy::large_enum_variant)]
 pub enum GradualPerformance {
     Osu(OsuGradualPerformance),
     Taiko(TaikoGradualPerformance),
@@ -100,9 +100,19 @@ pub enum GradualPerformance {
 
 impl GradualPerformance {
     /// Create a [`GradualPerformance`] for a map of any mode.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc, reason = "unreachable")]
     pub fn new(difficulty: Difficulty, map: &Beatmap) -> Self {
         Self::new_with_mode(difficulty, map, map.mode).expect("no conversion required")
+    }
+
+    /// Same as [`GradualPerformance::new`] but verifies that the map is not
+    /// suspicious.
+    pub fn checked_new(difficulty: Difficulty, map: &Beatmap) -> Result<Self, TooSuspicious> {
+        // This is fine because `Self::new` will use the map's mode so it won't
+        // be converted.
+        map.check_suspicion()?;
+
+        Ok(Self::new(difficulty, map))
     }
 
     /// Create a [`GradualPerformance`] for a [`Beatmap`] on a specific [`GameMode`].
@@ -154,7 +164,7 @@ impl GradualPerformance {
     }
 
     /// Returns the amount of remaining objects.
-    #[allow(clippy::len_without_is_empty)]
+    #[expect(clippy::len_without_is_empty, reason = "TODO")]
     pub fn len(&self) -> usize {
         match self {
             GradualPerformance::Osu(gradual) => gradual.len(),

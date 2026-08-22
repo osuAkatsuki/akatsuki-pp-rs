@@ -1,12 +1,24 @@
-use rosu_map::section::hit_objects::CurveBuffers;
+use std::borrow::Cow;
 
-use crate::model::{beatmap::Beatmap, mods::Reflection};
+use rosu_map::section::{general::GameMode, hit_objects::CurveBuffers};
+
+use crate::{
+    Difficulty,
+    model::{beatmap::Beatmap, mode::ConvertError, mods::Reflection},
+};
 
 use super::{
     attributes::OsuDifficultyAttributes,
     difficulty::scaling_factor::ScalingFactor,
     object::{NestedSliderObjectKind, OsuObject, OsuObjectKind},
 };
+
+pub fn prepare_map<'map>(
+    difficulty: &Difficulty,
+    map: &'map Beatmap,
+) -> Result<Cow<'map, Beatmap>, ConvertError> {
+    map.convert_ref(GameMode::Osu, difficulty.get_mods())
+}
 
 pub fn convert_objects(
     map: &Beatmap,
@@ -23,7 +35,7 @@ pub fn convert_objects(
     let mut osu_objects: Box<[_]> = map
         .hit_objects
         .iter()
-        .map(|h| OsuObject::new(h, map, &mut curve_bufs, &mut ticks_buf))
+        .map(|h| OsuObject::new(h, map, reflection, &mut curve_bufs, &mut ticks_buf))
         .inspect(|h| {
             if take == 0 {
                 return;
@@ -67,10 +79,6 @@ pub fn convert_objects(
 
     for h in osu_objects.iter_mut() {
         h.stack_offset = scaling_factor.stack_offset(h.stack_height);
-
-        if let OsuObjectKind::Slider(ref mut slider) = h.kind {
-            slider.lazy_end_pos += h.pos + h.stack_offset;
-        }
     }
 
     osu_objects

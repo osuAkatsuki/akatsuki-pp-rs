@@ -1,11 +1,11 @@
 use std::panic::{self, UnwindSafe};
 
 use akatsuki_pp::{
+    Beatmap,
     catch::{CatchPerformance, CatchPerformanceAttributes},
     mania::{ManiaPerformance, ManiaPerformanceAttributes},
     osu::{OsuPerformance, OsuPerformanceAttributes},
     taiko::{TaikoPerformance, TaikoPerformanceAttributes},
-    Beatmap,
 };
 
 use self::common::*;
@@ -35,6 +35,11 @@ macro_rules! test_cases {
         pp_flashlight: $pp_flashlight:expr,
         pp_speed: $pp_speed:expr,
         effective_miss_count: $effective_miss_count:expr,
+        speed_deviation: $speed_deviation:expr,
+        combo_based_estimated_miss_count: $combo_based_estimated_miss_count:expr,
+        score_based_estimated_miss_count: $score_based_estimated_miss_count:expr,
+        aim_estimated_slider_breaks: $aim_estimated_slider_breaks:expr,
+        speed_estimated_slider_breaks: $speed_estimated_slider_breaks:expr,
     }) => {
         (
             OsuPerformance::from(&$map).lazer(true),
@@ -45,6 +50,11 @@ macro_rules! test_cases {
                 pp_flashlight: $pp_flashlight,
                 pp_speed: $pp_speed,
                 effective_miss_count: $effective_miss_count,
+                speed_deviation: $speed_deviation,
+                combo_based_estimated_miss_count: $combo_based_estimated_miss_count,
+                score_based_estimated_miss_count: $score_based_estimated_miss_count,
+                aim_estimated_slider_breaks: $aim_estimated_slider_breaks,
+                speed_estimated_slider_breaks: $speed_estimated_slider_breaks,
                 ..Default::default()
             },
         )
@@ -54,7 +64,6 @@ macro_rules! test_cases {
         pp: $pp:expr,
         pp_acc: $pp_acc:expr,
         pp_difficulty: $pp_difficulty:expr,
-        effective_miss_count: $effective_miss_count:expr,
         estimated_unstable_rate: $estimated_unstable_rate:expr,
     }) => {
         (
@@ -63,7 +72,6 @@ macro_rules! test_cases {
                 pp: $pp,
                 pp_acc: $pp_acc,
                 pp_difficulty: $pp_difficulty,
-                effective_miss_count: $effective_miss_count,
                 estimated_unstable_rate: $estimated_unstable_rate,
                 ..Default::default()
             },
@@ -103,121 +111,95 @@ fn basic_osu() {
     test_cases! {
         Osu: OSU {
             NM => {
-                pp: 272.6047426867276,
-                pp_acc: 97.62287463107766,
-                pp_aim: 99.3726518686143,
+                pp: 287.9051448920619,
+                pp_acc: 98.99847982709288,
+                pp_aim: 113.66811014707582,
                 pp_flashlight: 0.0,
-                pp_speed: 64.48542022217285,
+                pp_speed: 65.7316947411581,
                 effective_miss_count: 0.0,
+                speed_deviation: Some(11.559405011202584),
+                combo_based_estimated_miss_count: 0.0,
+                score_based_estimated_miss_count: None,
+                aim_estimated_slider_breaks: 0.0,
+                speed_estimated_slider_breaks: 0.0,
             };
             HD => {
-                pp: 299.17174736245374,
-                pp_acc: 105.43270460156388,
-                pp_aim: 110.10489751227146,
+                pp: 315.8674097332546,
+                pp_acc: 106.91835821326032,
+                pp_aim: 125.5489356876975,
                 pp_flashlight: 0.0,
-                pp_speed: 71.4498451141828,
+                pp_speed: 72.9912208672784,
                 effective_miss_count: 0.0,
+                speed_deviation: Some(11.559405011202584),
+                combo_based_estimated_miss_count: 0.0,
+                score_based_estimated_miss_count: None,
+                aim_estimated_slider_breaks: 0.0,
+                speed_estimated_slider_breaks: 0.0,
             };
             EZ HD => {
-                pp: 186.7137498214991,
-                pp_acc: 16.6270597231239,
-                pp_aim: 98.11121656070222,
+                pp: 200.88128466771315,
+                pp_acc: 17.33989029835826,
+                pp_aim: 109.17177789930311,
                 pp_flashlight: 0.0,
-                pp_speed: 61.51901495973101,
+                pp_speed: 64.55964097206972,
                 effective_miss_count: 0.0,
+                speed_deviation: Some(22.768253044002595),
+                combo_based_estimated_miss_count: 0.0,
+                score_based_estimated_miss_count: None,
+                aim_estimated_slider_breaks: 0.0,
+                speed_estimated_slider_breaks: 0.0,
             };
             HR => {
-                pp: 404.7030358947424,
+                pp: 422.8822464661912,
                 pp_acc: 161.55575439788055,
-                pp_aim: 145.04665418031985,
+                pp_aim: 167.50210608714042,
                 pp_flashlight: 0.0,
-                pp_speed: 80.77088499277514,
+                pp_speed: 78.89335639563441,
                 effective_miss_count: 0.0,
+                speed_deviation: Some(8.598712200750178),
+                combo_based_estimated_miss_count: 0.0,
+                score_based_estimated_miss_count: None,
+                aim_estimated_slider_breaks: 0.0,
+                speed_estimated_slider_breaks: 0.0,
             };
             DT => {
-                pp: 738.7899608061098,
-                pp_acc: 184.09450675506795,
-                pp_aim: 304.16666833057235,
+                pp: 784.2400469306212,
+                pp_acc: 183.66566616694254,
+                pp_aim: 348.7917741691343,
                 pp_flashlight: 0.0,
-                pp_speed: 220.06297202966698,
+                pp_speed: 224.8868678368528,
                 effective_miss_count: 0.0,
+                speed_deviation: Some(7.6754769185728815),
+                combo_based_estimated_miss_count: 0.0,
+                score_based_estimated_miss_count: None,
+                aim_estimated_slider_breaks: 0.0,
+                speed_estimated_slider_breaks: 0.0,
             };
             FL => {
-                pp: 402.408877784248,
-                pp_acc: 99.57533212369923,
-                pp_aim: 99.3726518686143,
-                pp_flashlight: 132.29720631068272,
-                pp_speed: 64.48542022217285,
+                pp: 415.9768919360004,
+                pp_acc: 100.97844942363474,
+                pp_aim: 113.66811014707582,
+                pp_flashlight: 132.3188848707867,
+                pp_speed: 65.7316947411581,
                 effective_miss_count: 0.0,
+                speed_deviation: Some(11.559405011202584),
+                combo_based_estimated_miss_count: 0.0,
+                score_based_estimated_miss_count: None,
+                aim_estimated_slider_breaks: 0.0,
+                speed_estimated_slider_breaks: 0.0,
             };
             HD FL => {
-                pp: 469.3245236137446,
-                pp_acc: 107.54135869359516,
-                pp_aim: 110.10489751227146,
-                pp_flashlight: 171.62594459401154,
-                pp_speed: 71.4498451141828,
+                pp: 483.7752666636294,
+                pp_acc: 109.05672537752552,
+                pp_aim: 125.5489356876975,
+                pp_flashlight: 171.65397211175005,
+                pp_speed: 72.9912208672784,
                 effective_miss_count: 0.0,
-            };
-        }
-    };
-    #[cfg(target_os = "linux")]
-    test_cases! {
-        Osu: OSU {
-            NM => {
-                pp: 272.6047426867276,
-                pp_acc: 97.62287463107766,
-                pp_aim: 99.37265186861426,
-                pp_flashlight: 0.0,
-                pp_speed: 64.48542022217285,
-                effective_miss_count: 0.0,
-            };
-            HD => {
-                pp: 299.17174736245363,
-                pp_acc: 105.43270460156388,
-                pp_aim: 110.10489751227142,
-                pp_flashlight: 0.0,
-                pp_speed: 71.4498451141828,
-                effective_miss_count: 0.0,
-            };
-            EZ HD => {
-                pp: 186.7137498214991,
-                pp_acc: 16.6270597231239,
-                pp_aim: 98.11121656070222,
-                pp_flashlight: 0.0,
-                pp_speed: 61.51901495973101,
-                effective_miss_count: 0.0,
-            };
-            HR => {
-                pp: 404.7030358947424,
-                pp_acc: 161.55575439788055,
-                pp_aim: 145.04665418031985,
-                pp_flashlight: 0.0,
-                pp_speed: 80.77088499277514,
-                effective_miss_count: 0.0,
-            };
-            DT => {
-                pp: 738.7899608061098,
-                pp_acc: 184.09450675506795,
-                pp_aim: 304.16666833057235,
-                pp_flashlight: 0.0,
-                pp_speed: 220.06297202966698,
-                effective_miss_count: 0.0,
-            };
-            FL => {
-                pp: 402.408877784248,
-                pp_acc: 99.57533212369923,
-                pp_aim: 99.37265186861426,
-                pp_flashlight: 132.29720631068272,
-                pp_speed: 64.48542022217285,
-                effective_miss_count: 0.0,
-            };
-            HD FL => {
-                pp: 469.3245236137446,
-                pp_acc: 107.54135869359516,
-                pp_aim: 110.10489751227142,
-                pp_flashlight: 171.62594459401154,
-                pp_speed: 71.4498451141828,
-                effective_miss_count: 0.0,
+                speed_deviation: Some(11.559405011202584),
+                combo_based_estimated_miss_count: 0.0,
+                score_based_estimated_miss_count: None,
+                aim_estimated_slider_breaks: 0.0,
+                speed_estimated_slider_breaks: 0.0,
             };
         }
     };
@@ -228,32 +210,28 @@ fn basic_taiko() {
     test_cases! {
         Taiko: TAIKO {
             NM => {
-                pp: 114.68651694107942,
-                pp_acc: 67.10083752258917,
-                pp_difficulty: 40.6658183165898,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(148.44150180469418),
+                pp: 130.3342753050141,
+                pp_acc: 96.78235028730231,
+                pp_difficulty: 33.551925017711795,
+                estimated_unstable_rate: Some(146.32383579722838),
             };
             HD => {
-                pp: 124.41592086295445,
-                pp_acc: 67.10083752258917,
-                pp_difficulty: 41.68246377450454,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(148.44150180469418),
+                pp: 138.26399007691603,
+                pp_acc: 104.04102655884999,
+                pp_difficulty: 34.22296351806603,
+                estimated_unstable_rate: Some(146.32383579722838),
             };
             HR => {
-                pp: 138.3981102935321,
-                pp_acc: 82.52109686788792,
-                pp_difficulty: 47.44272798866182,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(122.99438720960376),
+                pp: 166.77434181278937,
+                pp_acc: 130.20134262470424,
+                pp_difficulty: 36.57299918808513,
+                estimated_unstable_rate: Some(120.87621218031911),
             };
             DT => {
-                pp: 220.07140899937482,
-                pp_acc: 118.28107309573312,
-                pp_difficulty: 88.93091255724303,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(98.96100120312946),
+                pp: 266.1232222806763,
+                pp_acc: 173.19552687459048,
+                pp_difficulty: 92.92769540608585,
+                estimated_unstable_rate: Some(97.54922386481893),
             };
         }
     };
@@ -265,65 +243,28 @@ fn convert_taiko() {
     test_cases! {
         Taiko: OSU {
             NM => {
-                pp: 353.6961706002712,
-                pp_acc: 155.09212159726567,
-                pp_difficulty: 178.19145253120928,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(85.75868894575865),
+                pp: 388.8389762212271,
+                pp_acc: 220.27109512284244,
+                pp_difficulty: 168.56788109838465,
+                estimated_unstable_rate: Some(81.74165086164194),
             };
             HD => {
-                pp: 358.45704044422996,
-                pp_acc: 155.09212159726567,
-                pp_difficulty: 182.6462388444895,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(85.75868894575865),
+                pp: 389.68181562671896,
+                pp_acc: 220.27109512284244,
+                pp_difficulty: 169.41072050387652,
+                estimated_unstable_rate: Some(81.74165086164194),
             };
             HR => {
-                pp: 405.57235351353773,
-                pp_acc: 186.06296332183615,
-                pp_difficulty: 196.1813610529617,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(72.67685680089848),
+                pp: 466.289743228387,
+                pp_acc: 259.1975812188925,
+                pp_difficulty: 207.0921620094945,
+                estimated_unstable_rate: Some(70.8427640800897),
             };
             DT => {
-                pp: 658.0214875413873,
-                pp_acc: 272.26616492989393,
-                pp_difficulty: 347.4712042359611,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(57.17245929717244),
-            };
-        }
-    }
-    #[cfg(target_os = "linux")]
-    test_cases! {
-        Taiko: OSU {
-            NM => {
-                pp: 353.6961706002712,
-                pp_acc: 155.09212159726567,
-                pp_difficulty: 178.19145253120928,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(85.75868894575865),
-            };
-            HD => {
-                pp: 358.45704044423
-                pp_acc: 155.09212159726567,
-                pp_difficulty: 182.6462388444895,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(85.75868894575865),
-            };
-            HR => {
-                pp: 405.57235351353773,
-                pp_acc: 186.06296332183615,
-                pp_difficulty: 196.1813610529617,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(72.67685680089848),
-            };
-            DT => {
-                pp: 658.0214875413873
-                pp_acc: 272.26616492989393,
-                pp_difficulty: 347.4712042359611,
-                effective_miss_count: 0.0,
-                estimated_unstable_rate: Some(57.17245929717244),
+                pp: 805.083671145498,
+                pp_acc: 392.44103449845574,
+                pp_difficulty: 412.64263664704225,
+                estimated_unstable_rate: Some(54.494433907761305),
             };
         }
     }
@@ -387,33 +328,81 @@ where
 
 impl AssertEq for OsuPerformanceAttributes {
     fn assert_eq(&self, expected: &Self) {
-        assert_eq_float(self.pp, expected.pp);
-        assert_eq_float(self.pp_acc, expected.pp_acc);
-        assert_eq_float(self.pp_aim, expected.pp_aim);
-        assert_eq_float(self.pp_flashlight, expected.pp_flashlight);
-        assert_eq_float(self.pp_speed, expected.pp_speed);
-        assert_eq_float(self.effective_miss_count, expected.effective_miss_count);
+        let Self {
+            difficulty: _,
+            pp,
+            pp_acc,
+            pp_aim,
+            pp_flashlight,
+            pp_speed,
+            effective_miss_count,
+            speed_deviation,
+            combo_based_estimated_miss_count,
+            score_based_estimated_miss_count,
+            aim_estimated_slider_breaks,
+            speed_estimated_slider_breaks,
+        } = self;
+
+        assert_eq_float(*pp, expected.pp);
+        assert_eq_float(*pp_acc, expected.pp_acc);
+        assert_eq_float(*pp_aim, expected.pp_aim);
+        assert_eq_float(*pp_flashlight, expected.pp_flashlight);
+        assert_eq_float(*pp_speed, expected.pp_speed);
+        assert_eq_float(*effective_miss_count, expected.effective_miss_count);
+        assert_eq_option(*speed_deviation, expected.speed_deviation);
+        assert_eq_float(
+            *combo_based_estimated_miss_count,
+            expected.combo_based_estimated_miss_count,
+        );
+        assert_eq_option(
+            *score_based_estimated_miss_count,
+            expected.score_based_estimated_miss_count,
+        );
+        assert_eq_float(
+            *aim_estimated_slider_breaks,
+            expected.aim_estimated_slider_breaks,
+        );
+        assert_eq_float(
+            *speed_estimated_slider_breaks,
+            expected.speed_estimated_slider_breaks,
+        );
     }
 }
 
 impl AssertEq for TaikoPerformanceAttributes {
     fn assert_eq(&self, expected: &Self) {
-        assert_eq_float(self.pp, expected.pp);
-        assert_eq_float(self.pp_acc, expected.pp_acc);
-        assert_eq_float(self.pp_difficulty, expected.pp_difficulty);
-        assert_eq_float(self.effective_miss_count, expected.effective_miss_count);
+        let Self {
+            difficulty: _,
+            pp,
+            pp_acc,
+            pp_difficulty,
+            estimated_unstable_rate,
+        } = self;
+
+        assert_eq_float(*pp, expected.pp);
+        assert_eq_float(*pp_acc, expected.pp_acc);
+        assert_eq_float(*pp_difficulty, expected.pp_difficulty);
+        assert_eq_option(*estimated_unstable_rate, expected.estimated_unstable_rate);
     }
 }
 
 impl AssertEq for CatchPerformanceAttributes {
     fn assert_eq(&self, expected: &Self) {
-        assert_eq_float(self.pp, expected.pp);
+        let Self { difficulty: _, pp } = self;
+
+        assert_eq_float(*pp, expected.pp);
     }
 }
 
 impl AssertEq for ManiaPerformanceAttributes {
     fn assert_eq(&self, expected: &Self) {
-        assert_eq_float(self.pp_difficulty, expected.pp_difficulty);
-        assert_eq_float(self.pp, expected.pp);
+        let Self {
+            difficulty: _,
+            pp,
+            pp_difficulty,
+        } = self;
+
+        assert_eq_float(*pp_difficulty, expected.pp_difficulty);
+        assert_eq_float(*pp, expected.pp);
     }
 }

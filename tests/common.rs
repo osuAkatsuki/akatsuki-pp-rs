@@ -1,5 +1,7 @@
-// False positive
-#[allow(unused)]
+#[allow(
+    unused,
+    reason = "false positive (also 'expect' doesn't seem to work so we use 'allow'"
+)]
 pub use self::{mods::*, paths::*};
 
 /// Paths to .osu files
@@ -12,7 +14,10 @@ mod paths {
 
 /// Bit values for mods
 mod mods {
-    #![allow(unused)]
+    #![allow(
+        unused,
+        reason = "false positive (also 'expect' doesn't seem to work so we use 'allow'"
+    )]
 
     pub const NM: u32 = 0;
     pub const NF: u32 = 1 << 0;
@@ -28,7 +33,21 @@ mod mods {
 
 #[track_caller]
 pub fn assert_eq_float<F: Float>(a: F, b: F) {
-    assert!((a - b).abs() < F::EPSILON, "{a} != {b}")
+    assert!((a - b).less_than_eps(), "{a} != {b}")
+}
+
+#[track_caller]
+#[allow(
+    unused,
+    reason = "false positive (also 'expect' doesn't seem to work so we use 'allow'"
+)]
+pub fn assert_eq_option<F: Float>(a: Option<F>, b: Option<F>) {
+    match (a, b) {
+        (Some(a), Some(b)) => assert!((a - b).less_than_eps(), "{a} != {b}"),
+        (None, None) => {}
+        (None, Some(b)) => panic!("None != Some({b})"),
+        (Some(a), None) => panic!("Some({a}) != None"),
+    }
 }
 
 /// Trait to provide flexibility in the `assert_eq_float` function.
@@ -38,6 +57,10 @@ pub trait Float:
     const EPSILON: Self;
 
     fn abs(self) -> Self;
+
+    fn less_than_eps(self) -> bool {
+        self.abs() < Self::EPSILON
+    }
 }
 
 macro_rules! impl_float {
@@ -57,7 +80,10 @@ macro_rules! impl_float {
 impl_float!(f32 f64);
 
 /// Trait to compare two instances and panic if they are not equal.
-#[allow(unused)]
+#[allow(
+    unused,
+    reason = "false positive (also 'expect' doesn't seem to work so we use 'allow'"
+)]
 pub trait AssertEq {
     fn assert_eq(&self, expected: &Self);
 }
