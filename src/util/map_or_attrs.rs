@@ -104,8 +104,6 @@ where
                     effect_points,
                     hit_objects,
                     hit_sounds,
-                    creator,
-                    beatmap_id,
                 } = self.0;
 
                 f.debug_struct("Beatmap")
