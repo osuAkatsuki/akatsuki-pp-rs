@@ -408,6 +408,7 @@ impl AssertEq for ManiaPerformanceAttributes {
 }
 
 #[test]
+#[allow(deprecated)]
 fn relax_2019() {
     let map = Beatmap::from_path(common::OSU).unwrap();
     let attrs = akatsuki_pp::osu_2019::OsuPP::from_map(&map)
@@ -422,6 +423,52 @@ fn relax_2019() {
 }
 
 #[test]
+fn relax_modern_osu() {
+    let map = Beatmap::from_path(common::OSU).unwrap();
+    let attrs = OsuPerformance::from(&map)
+        .mods(128) // RX (1 << 7)
+        .accuracy(99.0)
+        .calculate()
+        .unwrap();
+
+    assert_eq!(attrs.pp_speed, 0.0);
+    assert_eq!(attrs.pp_acc, 0.0);
+    assert!(attrs.pp_aim > 0.0);
+    assert!(attrs.pp > 0.0);
+}
+
+#[test]
+fn relax_streams_nerf_applied() {
+    use akatsuki_pp::osu::OsuDifficultyAttributes;
+
+    let mut attrs = OsuDifficultyAttributes::default();
+    attrs.aim = 5.0;
+    attrs.speed = 0.0;
+    attrs.great_hit_window = 26.0; // OD 9.0
+    attrs.ar = 9.5;
+    attrs.max_combo = 1000;
+    attrs.n_circles = 500;
+    attrs.n_sliders = 100;
+    attrs.aim_difficult_strain_count = 50.0;
+    attrs.speed_difficult_strain_count = 100.0; // ratio = 0.50 (< 1.09)
+
+    let high_acc = OsuPerformance::new(attrs.clone())
+        .mods(128) // RX
+        .accuracy(99.0)
+        .calculate()
+        .unwrap();
+
+    let low_acc = OsuPerformance::new(attrs)
+        .mods(128) // RX
+        .accuracy(85.0)
+        .calculate()
+        .unwrap();
+
+    // High acc receives less streams nerf penalty than low acc
+    assert!(high_acc.pp_aim > low_acc.pp_aim);
+}
+
+#[test]
 fn autopilot_osu() {
     let map = Beatmap::from_path(common::OSU).unwrap();
     let attrs = OsuPerformance::from(&map)
@@ -430,5 +477,6 @@ fn autopilot_osu() {
         .unwrap();
 
     assert_eq!(attrs.pp_aim, 0.0);
+    assert!(attrs.pp_speed > 0.0);
     assert!(attrs.pp > 0.0);
 }

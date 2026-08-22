@@ -287,6 +287,7 @@ macro_rules! impl_has_mod {
                 #[doc = "Check whether [`GameMods`] contain `"]
                 #[doc = $s]
                 #[doc = "`."]
+                #[allow(dead_code)]
                 pub(crate) fn $fn(&self) -> bool {
                     match self {
                         Self::Lazer(mods) => {

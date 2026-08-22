@@ -1,5 +1,6 @@
 use std::panic::{self, UnwindSafe};
 
+#[allow(unused_imports)]
 use akatsuki_pp::{
     Beatmap, Difficulty,
     catch::{Catch, CatchDifficultyAttributes},

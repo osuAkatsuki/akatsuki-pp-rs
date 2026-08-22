@@ -242,6 +242,23 @@ impl OsuPerformanceCalculator<'_> {
 
         aim_value *= self.acc;
 
+        // Akatsuki RX-specific: streams_nerf
+        // Penalizes aim PP on stream-heavy maps where RX trivializes tapping.
+        // Uses difficult strain count ratio to detect stream-heavy maps.
+        if self.mods.rx() && self.attrs.speed_difficult_strain_count > 0.0 {
+            let streams_ratio = (self.attrs.aim_difficult_strain_count
+                / self.attrs.speed_difficult_strain_count
+                * 100.0)
+                .round()
+                / 100.0;
+
+            if streams_ratio < 1.09 {
+                let acc_factor = (1.0 - self.acc).abs();
+                let acc_depression = (0.86 - acc_factor).max(0.5);
+                aim_value *= acc_depression;
+            }
+        }
+
         aim_value
     }
 
