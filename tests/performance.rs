@@ -1,6 +1,6 @@
 use std::panic::{self, UnwindSafe};
 
-use akatsuki_pp::{
+use rosu_pp::{
     Beatmap,
     catch::{CatchPerformance, CatchPerformanceAttributes},
     mania::{ManiaPerformance, ManiaPerformanceAttributes},
@@ -411,7 +411,7 @@ impl AssertEq for ManiaPerformanceAttributes {
 #[allow(deprecated)]
 fn relax_2019() {
     let map = Beatmap::from_path(common::OSU).unwrap();
-    let attrs = akatsuki_pp::osu_2019::OsuPP::from_map(&map)
+    let attrs = rosu_pp::osu_2019::OsuPP::from_map(&map)
         .mods(8 + 64) // HDDT
         .combo(600)
         .accuracy(99.0)
@@ -439,7 +439,7 @@ fn relax_modern_osu() {
 
 #[test]
 fn relax_streams_nerf_applied() {
-    use akatsuki_pp::osu::OsuDifficultyAttributes;
+    use rosu_pp::osu::OsuDifficultyAttributes;
 
     let mut attrs = OsuDifficultyAttributes::default();
     attrs.aim = 5.0;

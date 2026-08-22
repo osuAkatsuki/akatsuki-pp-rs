@@ -9,6 +9,9 @@ repository = "https://github.com/osuAkatsuki/akatsuki-pp-rs"
 description = "Difficulty and performance calculation for osu!"
 keywords = ["osu", "pp", "stars", "performance", "difficulty"]
 
+[lib]
+name = "rosu_pp"
+
 [features]
 default = []
 sync = []

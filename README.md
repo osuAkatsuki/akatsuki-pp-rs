@@ -20,7 +20,7 @@ News posts of the latest updates: <https://osu.ppy.sh/home/news/2025-10-29-perfo
 
 ```rust
 // Decode the map
-let map = akatsuki_pp::Beatmap::from_path("./resources/2785319.osu").unwrap();
+let map = rosu_pp::Beatmap::from_path("./resources/2785319.osu").unwrap();
 
 // Whereas osu! simply times out on malicious maps, rosu-pp does not. To
 // prevent potential performance/memory issues, it is recommended to check
@@ -32,14 +32,14 @@ if let Err(sus) = map.check_suspicion() {
 }
 
 // Calculate difficulty attributes
-let diff_attrs = akatsuki_pp::Difficulty::new()
+let diff_attrs = rosu_pp::Difficulty::new()
     .mods(8 + 16) // HDHR
     .calculate(&map); // or `checked_calculate`
 
 let stars = diff_attrs.stars();
 
 // Calculate performance attributes
-let perf_attrs = akatsuki_pp::Performance::new(diff_attrs)
+let perf_attrs = rosu_pp::Performance::new(diff_attrs)
     // To speed up the calculation, we used the previous attributes.
     // **Note** that this should only be done if the map and all difficulty
     // settings stay the same, otherwise the final attributes will be incorrect!
@@ -65,12 +65,12 @@ println!("Stars: {stars} | PP: {pp}/{max_pp}");
 Gradually calculating attributes provides an efficient way to process each hitobject
 separately and calculate the attributes only up to that point.
 
-For difficulty attributes, there is `GradualDifficulty` which implements `Iterator`
-and for performance attributes there is `GradualPerformance` which requires the current
+For difficulty attributes, there is [`GradualDifficulty`] which implements `Iterator`
+and for performance attributes there is [`GradualPerformance`] which requires the current
 score state.
 
 ```rust
-use akatsuki_pp::{Beatmap, GradualPerformance, Difficulty, any::ScoreState};
+use rosu_pp::{Beatmap, GradualPerformance, Difficulty, any::ScoreState};
 
 let map = Beatmap::from_path("./resources/1028484.osu").unwrap();
 
@@ -149,5 +149,7 @@ Using `rosu-pp` from other languages than Rust:
 [rosu-pp-js]: https://github.com/MaxOhn/rosu-pp-js
 [rosu-pp-py]: https://github.com/MaxOhn/rosu-pp-py
 [benchmark]: https://gist.github.com/MaxOhn/625af10011f6d7e13a171b08ccf959ff
+[`GradualDifficulty`]: https://docs.rs/akatsuki-pp/latest/rosu_pp/any/difficulty/gradual/enum.GradualDifficulty.html
+[`GradualPerformance`]: https://docs.rs/akatsuki-pp/latest/rosu_pp/any/performance/gradual/enum.GradualPerformance.html
 
 <!-- cargo-rdme end -->

@@ -186,7 +186,7 @@ impl<T: Hash> Hash for Weak<T> {
 }
 
 /// ```compile_fail
-/// use akatsuki_pp::{taiko::TaikoGradualDifficulty, Beatmap, Difficulty};
+/// use rosu_pp::{taiko::TaikoGradualDifficulty, Beatmap, Difficulty};
 ///
 /// let map = Beatmap::from_bytes(&[]).unwrap();
 /// let difficulty = Difficulty::new();

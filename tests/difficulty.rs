@@ -1,7 +1,6 @@
 use std::panic::{self, UnwindSafe};
 
-#[allow(unused_imports)]
-use akatsuki_pp::{
+use rosu_pp::{
     Beatmap, Difficulty,
     catch::{Catch, CatchDifficultyAttributes},
     mania::{Mania, ManiaDifficultyAttributes},
