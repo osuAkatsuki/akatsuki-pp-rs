@@ -86,7 +86,7 @@ pub fn stars(
         &prev,
         prev_vals,
         prev_prev,
-        map_attributes.clock_rate as f32,
+        map_attributes.clock_rate() as f32,
         scaling_factor,
     );
 
@@ -108,7 +108,7 @@ pub fn stars(
             &prev,
             prev_vals,
             prev_prev,
-            map_attributes.clock_rate as f32,
+            map_attributes.clock_rate() as f32,
             scaling_factor,
         );
 

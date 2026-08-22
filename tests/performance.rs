@@ -406,3 +406,29 @@ impl AssertEq for ManiaPerformanceAttributes {
         assert_eq_float(*pp, expected.pp);
     }
 }
+
+#[test]
+fn relax_2019() {
+    let map = Beatmap::from_path(common::OSU).unwrap();
+    let attrs = akatsuki_pp::osu_2019::OsuPP::from_map(&map)
+        .mods(8 + 64) // HDDT
+        .combo(600)
+        .accuracy(99.0)
+        .misses(1)
+        .calculate();
+
+    assert!(attrs.pp > 0.0);
+    assert!(attrs.difficulty.stars > 0.0);
+}
+
+#[test]
+fn autopilot_osu() {
+    let map = Beatmap::from_path(common::OSU).unwrap();
+    let attrs = OsuPerformance::from(&map)
+        .mods(8192) // AP (1 << 13)
+        .calculate()
+        .unwrap();
+
+    assert_eq!(attrs.pp_aim, 0.0);
+    assert!(attrs.pp > 0.0);
+}
