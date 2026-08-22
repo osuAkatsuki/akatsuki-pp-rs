@@ -1,29 +1,28 @@
 use std::{cmp, error, fmt, slice};
 
 use rosu_map::{
+    DecodeBeatmap, DecodeState,
     section::{
         difficulty::{Difficulty, DifficultyKey, ParseDifficultyError},
         events::{BreakPeriod, EventType, ParseEventTypeError},
         general::{GameMode, GeneralKey, ParseGameModeError},
         hit_objects::{
-            hit_samples::{HitSoundType, ParseHitSoundTypeError},
             HitObjectType, ParseHitObjectTypeError, PathControlPoint, PathType,
+            hit_samples::{HitSoundType, ParseHitSoundTypeError},
         },
-        metadata::MetadataKey,
         timing_points::{ControlPoint, EffectFlags, ParseEffectFlagsError},
     },
-    util::{KeyValue, ParseNumber, ParseNumberError, Pos, StrExt, MAX_PARSE_VALUE},
-    DecodeBeatmap, DecodeState,
+    util::{KeyValue, MAX_PARSE_VALUE, ParseNumber, ParseNumberError, Pos, StrExt},
 };
 
 use crate::{
     model::{
         control_point::{
-            difficulty_point_at, effect_point_at, DifficultyPoint, EffectPoint, TimingPoint,
+            DifficultyPoint, EffectPoint, TimingPoint, difficulty_point_at, effect_point_at,
         },
         hit_object::{HitObject, HitObjectKind, HoldNote, Slider, Spinner},
     },
-    util::{float_ext::FloatExt, sort},
+    util::{float_ext::FloatExt, hint::unlikely, sort},
 };
 
 use super::{Beatmap, DEFAULT_SLIDER_LENIENCY};
@@ -50,9 +49,6 @@ pub struct BeatmapState {
     curve_points: Vec<PathControlPoint>,
     vertices: Vec<PathControlPoint>,
     point_split: Vec<*const str>,
-
-    creator: String,
-    beatmap_id: i32,
 }
 
 impl BeatmapState {
@@ -274,8 +270,6 @@ impl DecodeState for BeatmapState {
             vertices: Vec::with_capacity(8),
             // mean=19.97 | median=8
             point_split: Vec::with_capacity(8),
-            creator: String::default(),
-            beatmap_id: i32::default(),
         }
     }
 }
@@ -285,13 +279,28 @@ impl From<BeatmapState> for Beatmap {
         state.flush_pending_points();
 
         let Difficulty {
-            hp_drain_rate,
-            circle_size,
-            overall_difficulty,
-            approach_rate,
-            slider_multiplier,
-            slider_tick_rate,
+            mut hp_drain_rate,
+            mut circle_size,
+            mut overall_difficulty,
+            mut approach_rate,
+            mut slider_multiplier,
+            mut slider_tick_rate,
         } = state.difficulty;
+
+        hp_drain_rate = hp_drain_rate.clamp(0.0, 10.0);
+
+        // * mania uses "circle size" for key count, thus different allowable range
+        circle_size = if state.mode == GameMode::Mania {
+            circle_size.clamp(1.0, 18.0)
+        } else {
+            circle_size.clamp(0.0, 10.0)
+        };
+
+        overall_difficulty = overall_difficulty.clamp(0.0, 10.0);
+        approach_rate = approach_rate.clamp(0.0, 10.0);
+
+        slider_multiplier = slider_multiplier.clamp(0.4, 3.6);
+        slider_tick_rate = slider_tick_rate.clamp(0.5, 8.0);
 
         let mut sorter = sort::TandemSorter::new_stable(&state.hit_objects, |a, b| {
             a.start_time.total_cmp(&b.start_time)
@@ -299,10 +308,6 @@ impl From<BeatmapState> for Beatmap {
 
         sorter.sort(&mut state.hit_objects);
         sorter.sort(&mut state.hit_sounds);
-
-        if state.mode == GameMode::Mania {
-            sort::osu_legacy(&mut state.hit_objects);
-        }
 
         Beatmap {
             version: state.version,
@@ -321,8 +326,6 @@ impl From<BeatmapState> for Beatmap {
             effect_points: state.effect_points,
             hit_objects: state.hit_objects,
             hit_sounds: state.hit_sounds,
-            creator: state.creator,
-            beatmap_id: state.beatmap_id,
         }
     }
 }
@@ -455,17 +458,7 @@ impl DecodeBeatmap for Beatmap {
         Ok(())
     }
 
-    fn parse_metadata(state: &mut Self::State, line: &str) -> Result<(), Self::Error> {
-        let Ok(KeyValue { key, value }) = KeyValue::parse(line.trim_comment()) else {
-            return Ok(());
-        };
-
-        match key {
-            MetadataKey::Creator => state.creator = value.to_string(),
-            MetadataKey::BeatmapID => state.beatmap_id = value.parse_num()?,
-            _ => {}
-        }
-
+    fn parse_metadata(_: &mut Self::State, _: &str) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -538,9 +531,9 @@ impl DecodeBeatmap for Beatmap {
             .parse::<f64>()
             .map_err(ParseNumberError::InvalidFloat)?;
 
-        if beat_len < f64::from(-MAX_PARSE_VALUE) {
+        if unlikely(beat_len < f64::from(-MAX_PARSE_VALUE)) {
             return Err(ParseNumberError::NumberUnderflow.into());
-        } else if beat_len > f64::from(MAX_PARSE_VALUE) {
+        } else if unlikely(beat_len > f64::from(MAX_PARSE_VALUE)) {
             return Err(ParseNumberError::NumberOverflow.into());
         }
 
@@ -550,10 +543,10 @@ impl DecodeBeatmap for Beatmap {
             1.0
         };
 
-        if let Some(numerator) = split.next() {
-            if i32::parse(numerator)? < 1 {
-                return Err(ParseBeatmapError::TimeSignature);
-            }
+        if let Some(numerator) = split.next()
+            && unlikely(i32::parse(numerator)? < 1)
+        {
+            return Err(ParseBeatmapError::TimeSignature);
         }
 
         let _ = split.next(); // sample set
@@ -562,7 +555,7 @@ impl DecodeBeatmap for Beatmap {
 
         let timing_change = split
             .next()
-            .map_or(true, |next| matches!(next.chars().next(), Some('1')));
+            .is_none_or(|next| matches!(next.chars().next(), Some('1')));
 
         let kiai = split
             .next()
@@ -571,7 +564,7 @@ impl DecodeBeatmap for Beatmap {
             .is_some_and(|flags| flags.has_flag(EffectFlags::KIAI));
 
         if timing_change {
-            if beat_len.is_nan() {
+            if unlikely(beat_len.is_nan()) {
                 return Err(ParseBeatmapError::TimingControlPointNaN);
             }
 
@@ -582,7 +575,12 @@ impl DecodeBeatmap for Beatmap {
         let difficulty = DifficultyPoint::new(time, beat_len, speed_multiplier);
         state.add_pending_point(time, difficulty, timing_change);
 
-        let effect = EffectPoint::new(time, kiai);
+        let mut effect = EffectPoint::new(time, kiai);
+
+        if matches!(state.mode, GameMode::Taiko | GameMode::Mania) {
+            effect.scroll_speed = speed_multiplier.clamp(0.01, 10.0);
+        }
+
         state.add_pending_point(time, effect, timing_change);
 
         state.pending_control_points_time = time;
@@ -594,7 +592,7 @@ impl DecodeBeatmap for Beatmap {
         Ok(())
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines, reason = "staying in-sync with lazer")]
     fn parse_hit_objects(state: &mut Self::State, line: &str) -> Result<(), Self::Error> {
         let mut split = line.trim_comment().split(',');
 
@@ -654,7 +652,7 @@ impl DecodeBeatmap for Beatmap {
 
             let repeats = repeat_count.parse_num::<i32>()?;
 
-            if repeats > 9000 {
+            if unlikely(repeats > 9000) {
                 return Err(ParseBeatmapError::InvalidRepeatCount);
             }
 
@@ -822,19 +820,27 @@ impl ControlPoint<BeatmapState> for DifficultyPoint {
 
 impl ControlPoint<BeatmapState> for EffectPoint {
     fn check_already_existing(&self, state: &BeatmapState) -> bool {
-        match effect_point_at(&state.effect_points, self.time) {
+        self.check_already_existing(&state.effect_points)
+    }
+
+    fn add(self, state: &mut BeatmapState) {
+        self.add(&mut state.effect_points);
+    }
+}
+
+// osu!taiko conversion mutates the list of effect points
+impl ControlPoint<Vec<EffectPoint>> for EffectPoint {
+    fn check_already_existing(&self, effect_points: &Vec<EffectPoint>) -> bool {
+        match effect_point_at(effect_points, self.time) {
             Some(existing) => self.is_redundant(existing),
             None => self.is_redundant(&EffectPoint::default()),
         }
     }
 
-    fn add(self, state: &mut BeatmapState) {
-        match state
-            .effect_points
-            .binary_search_by(|probe| probe.time.total_cmp(&self.time))
-        {
-            Err(i) => state.effect_points.insert(i, self),
-            Ok(i) => state.effect_points[i] = self,
+    fn add(self, effect_points: &mut Vec<EffectPoint>) {
+        match effect_points.binary_search_by(|probe| probe.time.total_cmp(&self.time)) {
+            Err(i) => effect_points.insert(i, self),
+            Ok(i) => effect_points[i] = self,
         }
     }
 }

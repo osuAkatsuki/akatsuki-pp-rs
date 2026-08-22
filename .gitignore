@@ -1,5 +1,8 @@
-/target
+/target/
 Cargo.lock
 output*
-/.idea
+/.idea/
 /tests/custom.rs
+expanded.rs
+.sem/
+sem_diff*

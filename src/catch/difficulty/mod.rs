@@ -1,12 +1,17 @@
 use rosu_map::section::general::GameMode;
 
 use crate::{
-    any::difficulty::{skills::Skill, Difficulty},
+    Beatmap,
+    any::{
+        CalculateError,
+        difficulty::{Difficulty, skills::StrainSkill},
+    },
     catch::{
-        catcher::Catcher, convert::convert_objects, difficulty::object::CatchDifficultyObject,
+        catcher::Catcher,
+        convert::{convert_objects, prepare_map},
+        difficulty::object::CatchDifficultyObject,
     },
     model::{beatmap::BeatmapAttributes, mode::ConvertError},
-    Beatmap,
 };
 
 use self::skills::movement::Movement;
@@ -16,6 +21,7 @@ use super::{
     object::palpable::PalpableObject,
 };
 
+mod evaluators;
 pub mod gradual;
 mod object;
 mod skills;
@@ -26,16 +32,32 @@ pub fn difficulty(
     difficulty: &Difficulty,
     map: &Beatmap,
 ) -> Result<CatchDifficultyAttributes, ConvertError> {
-    let map = map.convert_ref(GameMode::Catch, difficulty.get_mods())?;
+    let map = prepare_map(difficulty, map)?;
+
+    Ok(calculate_difficulty(difficulty, &map))
+}
+
+pub fn checked_difficulty(
+    difficulty: &Difficulty,
+    map: &Beatmap,
+) -> Result<CatchDifficultyAttributes, CalculateError> {
+    let map = prepare_map(difficulty, map)?;
+    map.check_suspicion()?;
+
+    Ok(calculate_difficulty(difficulty, &map))
+}
+
+fn calculate_difficulty(difficulty: &Difficulty, map: &Beatmap) -> CatchDifficultyAttributes {
+    debug_assert_eq!(map.mode, GameMode::Catch);
 
     let DifficultyValues {
         movement,
         mut attrs,
-    } = DifficultyValues::calculate(difficulty, &map);
+    } = DifficultyValues::calculate(difficulty, map);
 
-    DifficultyValues::eval(&mut attrs, movement.difficulty_value());
+    DifficultyValues::eval(&mut attrs, movement.into_difficulty_value());
 
-    Ok(attrs)
+    attrs
 }
 
 pub struct CatchDifficultySetup {
@@ -48,7 +70,7 @@ impl CatchDifficultySetup {
         let map_attrs = map.attributes().difficulty(difficulty).build();
 
         let attrs = CatchDifficultyAttributes {
-            ar: map_attrs.ar,
+            preempt: map_attrs.hit_windows().ar.unwrap_or(0.0),
             is_convert: map.is_convert,
             ..Default::default()
         };
@@ -77,22 +99,21 @@ impl DifficultyValues {
         let mut count = ObjectCountBuilder::new_regular(take);
 
         let palpable_objects =
-            convert_objects(map, &mut count, reflection, hr_offsets, map_attrs.cs as f32);
+            convert_objects(map, &mut count, reflection, hr_offsets, map_attrs.cs());
+
+        let mut half_catcher_width = Catcher::calculate_catch_width(map_attrs.cs()) * 0.5;
+        half_catcher_width *= 1.0 - ((map_attrs.cs() - 5.5).max(0.0) * 0.0625);
 
         let diff_objects = Self::create_difficulty_objects(
-            &map_attrs,
             clock_rate,
+            half_catcher_width,
             palpable_objects.iter().take(take),
         );
 
         let mut movement = Movement::new(clock_rate);
 
-        {
-            let mut movement = Skill::new(&mut movement, &diff_objects);
-
-            for curr in diff_objects.iter() {
-                movement.process(curr);
-            }
+        for curr in diff_objects.iter() {
+            movement.process(curr, &diff_objects);
         }
 
         attrs.set_object_count(&count.into_regular());
@@ -105,18 +126,18 @@ impl DifficultyValues {
     }
 
     pub fn create_difficulty_objects<'a>(
-        map_attrs: &BeatmapAttributes,
         clock_rate: f64,
+        half_catcher_width: f32,
         mut palpable_objects: impl ExactSizeIterator<Item = &'a PalpableObject>,
     ) -> Box<[CatchDifficultyObject]> {
         let Some(mut last_object) = palpable_objects.next() else {
             return Box::default();
         };
 
-        let mut half_catcher_width = Catcher::calculate_catch_width(map_attrs.cs as f32) * 0.5;
-        half_catcher_width *= 1.0 - ((map_attrs.cs as f32 - 5.5).max(0.0) * 0.0625);
         let scaling_factor =
-            CatchDifficultyObject::NORMALIZED_HITOBJECT_RADIUS / half_catcher_width;
+            CatchDifficultyObject::NORMALIZED_HALF_CATCHER_WIDTH / half_catcher_width;
+
+        let mut last_player_pos = None;
 
         palpable_objects
             .enumerate()
@@ -126,9 +147,11 @@ impl DifficultyValues {
                     last_object,
                     clock_rate,
                     scaling_factor,
+                    last_player_pos,
                     i,
                 );
                 last_object = hit_object;
+                last_player_pos = Some(diff_object.player_pos);
 
                 diff_object
             })

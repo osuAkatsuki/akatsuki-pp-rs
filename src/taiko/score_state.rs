@@ -1,22 +1,18 @@
-/// Aggregation for a score's current state.
+/// osu!taiko hitresults..
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct TaikoScoreState {
-    /// Maximum combo that the score has had so far.
-    /// **Not** the maximum possible combo of the map so far.
-    pub max_combo: u32,
-    /// Amount of current 300s.
+pub struct TaikoHitResults {
+    /// Amount of 300s.
     pub n300: u32,
-    /// Amount of current 100s.
+    /// Amount of 100s.
     pub n100: u32,
-    /// Amount of current misses.
+    /// Amount of misses.
     pub misses: u32,
 }
 
-impl TaikoScoreState {
+impl TaikoHitResults {
     /// Create a new empty score state.
     pub const fn new() -> Self {
         Self {
-            max_combo: 0,
             n300: 0,
             n100: 0,
             misses: 0,
@@ -40,6 +36,32 @@ impl TaikoScoreState {
         let denominator = 2 * total_hits;
 
         f64::from(numerator) / f64::from(denominator)
+    }
+}
+
+impl Default for TaikoHitResults {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Aggregation for a score's current state.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct TaikoScoreState {
+    /// Maximum combo that the score has had so far.
+    /// **Not** the maximum possible combo of the map so far.
+    pub max_combo: u32,
+    /// Hitresults of a score.
+    pub hitresults: TaikoHitResults,
+}
+
+impl TaikoScoreState {
+    /// Create a new empty score state.
+    pub const fn new() -> Self {
+        Self {
+            max_combo: 0,
+            hitresults: TaikoHitResults::new(),
+        }
     }
 }
 

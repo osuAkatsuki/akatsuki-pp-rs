@@ -6,8 +6,8 @@ use crate::{Beatmap, GameMods};
 /// # Example
 ///
 /// ```
-/// # use akatsuki_pp::Beatmap;
-/// # use akatsuki_pp::osu_2019::OsuPP;
+/// # use rosu_pp::Beatmap;
+/// # use rosu_pp::osu_2019::OsuPP;
 /// # /*
 /// let map: Beatmap = ...
 /// # */

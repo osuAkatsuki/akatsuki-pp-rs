@@ -1,34 +1,41 @@
 use std::{borrow::Cow, io, path::Path, str::FromStr};
 
 use rosu_map::{
-    section::{general::GameMode, hit_objects::hit_samples::HitSoundType},
     LATEST_FORMAT_VERSION,
+    section::{general::GameMode, hit_objects::hit_samples::HitSoundType},
 };
 
 pub use rosu_map::section::events::BreakPeriod;
 
 use crate::{
-    catch::Catch, mania::Mania, taiko::Taiko, Difficulty, GameMods, GradualDifficulty,
-    GradualPerformance, Performance,
+    Difficulty, GameMods, GradualDifficulty, GradualPerformance, Performance, catch::Catch,
+    mania::Mania, taiko::Taiko, util::sort,
 };
 
 pub use self::{
-    attributes::{BeatmapAttributes, BeatmapAttributesBuilder, HitWindows},
+    attributes::{
+        AdjustedBeatmapAttributes, BeatmapAttribute, BeatmapAttributes, BeatmapAttributesBuilder,
+        HitWindows,
+    },
     decode::{BeatmapState, ParseBeatmapError},
+    suspicious::TooSuspicious,
 };
+
+pub(crate) use self::attributes::BeatmapAttributesExt;
 
 use super::{
     control_point::{
-        difficulty_point_at, effect_point_at, timing_point_at, DifficultyPoint, EffectPoint,
-        TimingPoint,
+        DifficultyPoint, EffectPoint, TimingPoint, difficulty_point_at, effect_point_at,
+        timing_point_at,
     },
     hit_object::HitObject,
     mode::ConvertError,
 };
 
-mod attributes;
+pub(crate) mod attributes;
 mod bpm;
 mod decode;
+mod suspicious;
 
 /// All beatmap data that is relevant for difficulty and performance
 /// calculation.
@@ -60,9 +67,6 @@ pub struct Beatmap {
     // HitObjects
     pub hit_objects: Vec<HitObject>,
     pub hit_sounds: Vec<HitSoundType>,
-
-    pub creator: String,
-    pub beatmap_id: i32,
 }
 
 impl Beatmap {
@@ -80,7 +84,7 @@ impl Beatmap {
     /// Returns a [`BeatmapAttributesBuilder`] to calculate modified beatmap
     /// attributes.
     pub fn attributes(&self) -> BeatmapAttributesBuilder {
-        BeatmapAttributesBuilder::new().map(self)
+        BeatmapAttributesBuilder::from(self)
     }
 
     /// The beats per minute of the map.
@@ -156,7 +160,7 @@ impl Beatmap {
             GameMode::Catch => Catch::convert(&mut map),
             GameMode::Mania => Mania::convert(&mut map, mods),
             GameMode::Osu => unreachable!(),
-        };
+        }
 
         Ok(Cow::Owned(map))
     }
@@ -184,6 +188,32 @@ impl Beatmap {
         }
 
         Ok(())
+    }
+
+    /// Sort hitobjects via [`sort::osu_legacy`] with a specific comparator.
+    ///
+    /// Mania's difficulty calculation applies this sorting *after* all mod
+    /// conversions have been applied to the hitobjects.
+    ///
+    /// <https://github.com/ppy/osu/blob/28c846b4d9366484792e27f4729cd1afa2cdeb66/osu.Game.Rulesets.Mania/Difficulty/ManiaDifficultyCalculator.cs#L70>
+    pub(crate) fn mania_hitobjects_legacy_sort(&mut self) {
+        sort::osu_legacy(&mut self.hit_objects, |a, b| {
+            (f64::round_ties_even(a.start_time) as i32)
+                .cmp(&(f64::round_ties_even(b.start_time) as i32))
+        });
+    }
+
+    /// Check whether hitobjects appear too suspicious for further calculation.
+    ///
+    /// Sometimes a [`Beatmap`] isn't created for gameplay but rather to test
+    /// the limits of osu! itself. Difficulty- and/or performance calculation
+    /// should likely be avoided on these maps due to potential performance
+    /// issues.
+    pub fn check_suspicion(&self) -> Result<(), TooSuspicious> {
+        match TooSuspicious::new(self) {
+            None => Ok(()),
+            Some(err) => Err(err),
+        }
     }
 }
 
@@ -218,8 +248,6 @@ impl Default for Beatmap {
             effect_points: Vec::default(),
             hit_objects: Vec::default(),
             hit_sounds: Vec::default(),
-            creator: String::default(),
-            beatmap_id: i32::default(),
         }
     }
 }

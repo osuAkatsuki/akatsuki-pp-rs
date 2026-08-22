@@ -1,8 +1,9 @@
-use rosu_map::section::general::GameMode;
+use crate::{
+    Beatmap, Difficulty, any::difficulty::skills::StrainSkill, model::mode::ConvertError,
+    osu::convert::prepare_map,
+};
 
-use crate::{model::mode::ConvertError, Beatmap, Difficulty};
-
-use super::difficulty::{skills::OsuSkills, DifficultyValues};
+use super::difficulty::{DifficultyValues, skills::OsuSkills};
 
 /// The result of calculating the strains on a osu! map.
 ///
@@ -25,9 +26,10 @@ impl OsuStrains {
 }
 
 pub fn strains(difficulty: &Difficulty, map: &Beatmap) -> Result<OsuStrains, ConvertError> {
-    let map = map.convert_ref(GameMode::Osu, difficulty.get_mods())?;
+    let map = prepare_map(difficulty, map)?;
 
     let DifficultyValues {
+        osu_objects: _,
         skills:
             OsuSkills {
                 aim,
@@ -39,9 +41,9 @@ pub fn strains(difficulty: &Difficulty, map: &Beatmap) -> Result<OsuStrains, Con
     } = DifficultyValues::calculate(difficulty, &map);
 
     Ok(OsuStrains {
-        aim: aim.get_curr_strain_peaks().into_vec(),
-        aim_no_sliders: aim_no_sliders.get_curr_strain_peaks().into_vec(),
-        speed: speed.get_curr_strain_peaks().into_vec(),
-        flashlight: flashlight.get_curr_strain_peaks().into_vec(),
+        aim: aim.into_current_strain_peaks(),
+        aim_no_sliders: aim_no_sliders.into_current_strain_peaks(),
+        speed: speed.into_current_strain_peaks(),
+        flashlight: flashlight.into_current_strain_peaks(),
     })
 }

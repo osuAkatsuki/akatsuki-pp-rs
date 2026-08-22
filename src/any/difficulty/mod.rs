@@ -6,15 +6,20 @@ use std::{
 use rosu_map::section::general::GameMode;
 
 use crate::{
+    GradualDifficulty, GradualPerformance,
+    any::CalculateError,
     catch::Catch,
     mania::Mania,
-    model::{beatmap::Beatmap, mode::ConvertError, mods::GameMods},
+    model::{
+        beatmap::{Beatmap, BeatmapAttribute, TooSuspicious, attributes::BeatmapDifficulty},
+        mode::ConvertError,
+        mods::GameMods,
+    },
     osu::Osu,
     taiko::Taiko,
-    GradualDifficulty, GradualPerformance,
 };
 
-use super::{attributes::DifficultyAttributes, InspectDifficulty, Strains};
+use super::{InspectDifficulty, Strains, attributes::DifficultyAttributes};
 
 pub mod gradual;
 pub mod inspect;
@@ -28,7 +33,7 @@ use crate::model::mode::IGameMode;
 /// # Example
 ///
 /// ```
-/// use akatsuki_pp::{Beatmap, Difficulty, any::DifficultyAttributes};
+/// use rosu_pp::{Beatmap, Difficulty, any::DifficultyAttributes};
 ///
 /// let map = Beatmap::from_path("./resources/2118524.osu").unwrap();
 ///
@@ -48,33 +53,13 @@ pub struct Difficulty {
     /// This allows for an optimization to reduce the struct size by storing its
     /// bits as a [`NonZeroU64`].
     clock_rate: Option<NonZeroU64>,
-    ar: Option<ModsDependent>,
-    cs: Option<ModsDependent>,
-    hp: Option<ModsDependent>,
-    od: Option<ModsDependent>,
+    #[expect(
+        clippy::struct_field_names,
+        reason = "it's a different kind of difficulty"
+    )]
+    map_difficulty: BeatmapDifficulty,
     hardrock_offsets: Option<bool>,
     lazer: Option<bool>,
-}
-
-/// Wrapper for beatmap attributes in [`Difficulty`].
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
-pub struct ModsDependent {
-    /// Value of the beatmap attribute.
-    pub value: f32,
-    /// Whether `value` should be used as is or modified based on mods.
-    ///
-    /// `true` means "value already considers mods" i.e. use as is;
-    /// `false` means modify with mods.
-    pub with_mods: bool,
-}
-
-impl ModsDependent {
-    pub const fn new(value: f32) -> Self {
-        Self {
-            value,
-            with_mods: false,
-        }
-    }
 }
 
 impl Difficulty {
@@ -84,10 +69,7 @@ impl Difficulty {
             mods: GameMods::DEFAULT,
             passed_objects: None,
             clock_rate: None,
-            ar: None,
-            cs: None,
-            hp: None,
-            od: None,
+            map_difficulty: BeatmapDifficulty::DEFAULT,
             hardrock_offsets: None,
             lazer: None,
         }
@@ -100,10 +82,7 @@ impl Difficulty {
             mods,
             passed_objects,
             clock_rate,
-            ar,
-            cs,
-            hp,
-            od,
+            map_difficulty,
             hardrock_offsets,
             lazer,
         } = self;
@@ -112,10 +91,10 @@ impl Difficulty {
             mods,
             passed_objects,
             clock_rate: clock_rate.map(non_zero_u64_to_f64),
-            ar,
-            cs,
-            hp,
-            od,
+            ar: map_difficulty.ar,
+            cs: map_difficulty.cs,
+            hp: map_difficulty.hp,
+            od: map_difficulty.od,
             hardrock_offsets,
             lazer,
         }
@@ -170,80 +149,88 @@ impl Difficulty {
     ///
     /// Only relevant for osu! and osu!catch.
     ///
-    /// `with_mods` determines if the given value should be used before
-    /// or after accounting for mods, e.g. on `true` the value will be
-    /// used as is and on `false` it will be modified based on the mods.
+    /// `fixed` determines if the given value should be used before or after
+    /// accounting for mods, e.g. on `true` the value will be used as is and on
+    /// `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn ar(self, ar: f32, with_mods: bool) -> Self {
-        Self {
-            ar: Some(ModsDependent {
-                value: ar.clamp(-20.0, 20.0),
-                with_mods,
-            }),
-            ..self
-        }
+    pub const fn ar(mut self, ar: f32, fixed: bool) -> Self {
+        let ar = f32::clamp(ar, -20.0, 20.0);
+
+        self.map_difficulty.ar = if fixed {
+            BeatmapAttribute::Fixed(ar)
+        } else {
+            BeatmapAttribute::Given(ar)
+        };
+
+        self
     }
 
     /// Override a beatmap's set CS.
     ///
     /// Only relevant for osu! and osu!catch.
     ///
-    /// `with_mods` determines if the given value should be used before
-    /// or after accounting for mods, e.g. on `true` the value will be
-    /// used as is and on `false` it will be modified based on the mods.
+    /// `fixed` determines if the given value should be used before or after
+    /// accounting for mods, e.g. on `true` the value will be used as is and on
+    /// `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn cs(self, cs: f32, with_mods: bool) -> Self {
-        Self {
-            cs: Some(ModsDependent {
-                value: cs.clamp(-20.0, 20.0),
-                with_mods,
-            }),
-            ..self
-        }
+    pub const fn cs(mut self, cs: f32, fixed: bool) -> Self {
+        let cs = f32::clamp(cs, -20.0, 20.0);
+
+        self.map_difficulty.cs = if fixed {
+            BeatmapAttribute::Fixed(cs)
+        } else {
+            BeatmapAttribute::Given(cs)
+        };
+
+        self
     }
 
     /// Override a beatmap's set HP.
     ///
-    /// `with_mods` determines if the given value should be used before
-    /// or after accounting for mods, e.g. on `true` the value will be
-    /// used as is and on `false` it will be modified based on the mods.
+    /// `fixed` determines if the given value should be used before or after
+    /// accounting for mods, e.g. on `true` the value will be used as is and on
+    /// `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn hp(self, hp: f32, with_mods: bool) -> Self {
-        Self {
-            hp: Some(ModsDependent {
-                value: hp.clamp(-20.0, 20.0),
-                with_mods,
-            }),
-            ..self
-        }
+    pub const fn hp(mut self, hp: f32, fixed: bool) -> Self {
+        let hp = f32::clamp(hp, -20.0, 20.0);
+
+        self.map_difficulty.hp = if fixed {
+            BeatmapAttribute::Fixed(hp)
+        } else {
+            BeatmapAttribute::Given(hp)
+        };
+
+        self
     }
 
     /// Override a beatmap's set OD.
     ///
-    /// `with_mods` determines if the given value should be used before
-    /// or after accounting for mods, e.g. on `true` the value will be
-    /// used as is and on `false` it will be modified based on the mods.
+    /// `fixed` determines if the given value should be used before or after
+    /// accounting for mods, e.g. on `true` the value will be used as is and on
+    /// `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn od(self, od: f32, with_mods: bool) -> Self {
-        Self {
-            od: Some(ModsDependent {
-                value: od.clamp(-20.0, 20.0),
-                with_mods,
-            }),
-            ..self
-        }
+    pub const fn od(mut self, od: f32, fixed: bool) -> Self {
+        let od = f32::clamp(od, -20.0, 20.0);
+
+        self.map_difficulty.od = if fixed {
+            BeatmapAttribute::Fixed(od)
+        } else {
+            BeatmapAttribute::Given(od)
+        };
+
+        self
     }
 
     /// Adjust patterns as if the HR mod is enabled.
@@ -266,7 +253,7 @@ impl Difficulty {
     }
 
     /// Perform the difficulty calculation.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc, reason = "unreachable")]
     pub fn calculate(&self, map: &Beatmap) -> DifficultyAttributes {
         match map.mode {
             GameMode::Osu => DifficultyAttributes::Osu(
@@ -284,6 +271,14 @@ impl Difficulty {
         }
     }
 
+    /// Perform the difficulty calculation after verifying the map is not
+    /// suspicious.
+    pub fn checked_calculate(&self, map: &Beatmap) -> Result<DifficultyAttributes, TooSuspicious> {
+        map.check_suspicion()?;
+
+        Ok(self.calculate(map))
+    }
+
     /// Perform the difficulty calculation for a specific [`IGameMode`].
     pub fn calculate_for_mode<M: IGameMode>(
         &self,
@@ -292,11 +287,20 @@ impl Difficulty {
         M::difficulty(self, map)
     }
 
+    /// Same as [`Difficulty::calculate_for_mode`] but verifies that the
+    /// [`Beatmap`] is not too suspicious for further calculation.
+    pub fn checked_calculate_for_mode<M: IGameMode>(
+        &self,
+        map: &Beatmap,
+    ) -> Result<M::DifficultyAttributes, CalculateError> {
+        M::checked_difficulty(self, map)
+    }
+
     /// Perform the difficulty calculation but instead of evaluating the skill
     /// strains, return them as is.
     ///
     /// Suitable to plot the difficulty of a map over time.
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc, reason = "unreachable")]
     pub fn strains(&self, map: &Beatmap) -> Strains {
         match map.mode {
             GameMode::Osu => Strains::Osu(Osu::strains(self, map).expect("no conversion required")),
@@ -312,6 +316,16 @@ impl Difficulty {
         }
     }
 
+    /// Perform the strain calculation after verifying the map is not
+    /// suspicious.
+    ///
+    /// See [`Difficulty::strains`].
+    pub fn checked_strains(&self, map: &Beatmap) -> Result<Strains, TooSuspicious> {
+        map.check_suspicion()?;
+
+        Ok(self.strains(map))
+    }
+
     /// Perform the strain calculation for a specific [`IGameMode`].
     pub fn strains_for_mode<M: IGameMode>(
         &self,
@@ -325,6 +339,15 @@ impl Difficulty {
         GradualDifficulty::new(self, map)
     }
 
+    /// Same as [`Difficulty::gradual_difficulty`] but verifies that the map is
+    /// not suspicious.
+    pub fn checked_gradual_difficulty(
+        self,
+        map: &Beatmap,
+    ) -> Result<GradualDifficulty, TooSuspicious> {
+        GradualDifficulty::checked_new(self, map)
+    }
+
     /// Create a gradual difficulty calculator for a [`Beatmap`] on a specific [`IGameMode`].
     pub fn gradual_difficulty_for_mode<M: IGameMode>(
         self,
@@ -336,6 +359,15 @@ impl Difficulty {
     /// Create a gradual performance calculator for a [`Beatmap`].
     pub fn gradual_performance(self, map: &Beatmap) -> GradualPerformance {
         GradualPerformance::new(self, map)
+    }
+
+    /// Same as [`Difficulty::gradual_performance`] but verifies that the map is
+    /// not suspicious.
+    pub fn checked_gradual_performance(
+        self,
+        map: &Beatmap,
+    ) -> Result<GradualPerformance, TooSuspicious> {
+        GradualPerformance::checked_new(self, map)
     }
 
     /// Create a gradual performance calculator for a [`Beatmap`] on a specific [`IGameMode`].
@@ -359,20 +391,8 @@ impl Difficulty {
         self.passed_objects.map_or(usize::MAX, |n| n as usize)
     }
 
-    pub(crate) const fn get_ar(&self) -> Option<ModsDependent> {
-        self.ar
-    }
-
-    pub(crate) const fn get_cs(&self) -> Option<ModsDependent> {
-        self.cs
-    }
-
-    pub(crate) const fn get_hp(&self) -> Option<ModsDependent> {
-        self.hp
-    }
-
-    pub(crate) const fn get_od(&self) -> Option<ModsDependent> {
-        self.od
+    pub(crate) const fn get_map_difficulty(&self) -> &BeatmapDifficulty {
+        &self.map_difficulty
     }
 
     pub(crate) fn get_hardrock_offsets(&self) -> bool {
@@ -385,7 +405,7 @@ impl Difficulty {
     }
 }
 
-fn non_zero_u64_to_f64(n: NonZeroU64) -> f64 {
+const fn non_zero_u64_to_f64(n: NonZeroU64) -> f64 {
     f64::from_bits(n.get())
 }
 
@@ -395,10 +415,7 @@ impl Debug for Difficulty {
             mods,
             passed_objects,
             clock_rate,
-            ar,
-            cs,
-            hp,
-            od,
+            map_difficulty,
             hardrock_offsets,
             lazer,
         } = self;
@@ -407,10 +424,10 @@ impl Debug for Difficulty {
             .field("mods", mods)
             .field("passed_objects", passed_objects)
             .field("clock_rate", &clock_rate.map(non_zero_u64_to_f64))
-            .field("ar", ar)
-            .field("cs", cs)
-            .field("hp", hp)
-            .field("od", od)
+            .field("ar", &map_difficulty.ar)
+            .field("cs", &map_difficulty.cs)
+            .field("hp", &map_difficulty.hp)
+            .field("od", &map_difficulty.od)
             .field("hardrock_offsets", hardrock_offsets)
             .field("lazer", lazer)
             .finish()

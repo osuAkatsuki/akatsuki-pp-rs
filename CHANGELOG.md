@@ -1,4 +1,169 @@
-# v1.1.0 (2024-07-10)
+# v4.0.1 (2026-04-12)
+
+Fixed a bug about legacy score miss approximation
+
+## v4.0.0 (2026-04-11)
+
+Updated all modes' difficulty and performance calculation. See PR [#69] or osu!'s newspost for more info: <https://osu.ppy.sh/home/news/2025-10-29-performance-points-star-rating-updates>
+
+Various other changes are also included. Big thanks to everyone who helped out,
+especially [@tsunyoku] :)
+
+### Breaking
+
+- Removed the `raw_strains` feature because it is now the default. This means
+  there is no automatic guard rail to handle malicious maps; you should check a
+  map's suspicion before using it for further calculation.
+- Bumped `rosu-mods` to 0.4.0
+- Removed the `ModsDependent` type and replaced it by `BeatmapAttribute`. This
+  only affects the `InspectDifficulty` type in the public interface.
+- Hitresult generation has been reworked. The `HitResult::Fastest` variant has
+  been removed. The new trait `HitResultGenerator` and its implementors like
+  `Fast`, `Closest`, or `Composable` now decide on the generation
+  implementation. See PR [#68].
+- `ScoreState` and `OsuScoreState` have the new field `legacy_total_score` which
+  is, currently, only needed for osu!standard scores on osu!stable.
+- Added new `[Mode]HitResults` types to contain the actual hitresults. The
+  modes' score state now contains this new type instead of each hitresult
+  separately.
+- Removed the field `CatchDifficultyAttributes.ar` and added the field
+  `preempt`.
+- The `IGameMode` trait was modified:
+  - New type `HitResults`
+  - New function `checked_difficulty`
+- Beatmap attribute calculation has been reworked. See PR [#71].
+  `BeatmapAttributes`' fields are no longer pub but have getter methods. Its AR
+  and OD values are no longer clock-rate-adjusted. To apply clock rate, call the
+  method `BeatmapAttributes::apply_clock_rate` and use the resulting
+  `AdjustedBeatmapAttributes`. The `hit_windows` method now belongs to
+  `BeatmapAttributes` instead of its builder. Setters of
+  `BeatmapAttributesBuilder` now operate on mutable references rather than
+  ownership.
+- The `HitWindows` struct now has additional fields `od_perfect` and `od_good`.
+  All of its fields are now wrapped in an `Option`; it always depends on the
+  mode whether they will be `Some`.
+- Added the `OsuDifficultyAttributes` fields `aim_top_weighted_slider_factor`,
+  `speed_top_weighted_slider_factor`, `nested_score_per_object`,
+  `legacy_score_base_multiplier`, and `maximum_legacy_combo_score`.
+- Added the `OsuPerformanceAttributes` fields `combo_based_estimated_miss_count`,
+  `score_based_estimated_miss_count`, `aim_estimated_slider_breaks`, and
+  `speed_estimated_slider_breaks`.
+- Added the `TaikoDifficultyAttributes` fields `mechanical_difficulty` and
+  `consistency_factor`.
+- Removed the field `TaikoPerformanceAttributes.effective_miss_count`
+
+### Added
+
+- Various methods now have a `checked_*` counterpart which does the same job but
+  is fallible because it performs a beatmap suspicion check before the actual
+  work. If a method was infallible, its counterpart's error is `TooSuspicious`.
+  Otherwise, if it was already fallible with `ConvertError`, its counterpart is
+  fallible with `CalculateError`.
+  - `GradualDifficulty::checked_new`
+  - `Difficulty::{checked_calculate,checked_calculate_for_mode,checked_gradual_difficulty,checked_gradual_performance,checked_strains}`
+  - `GradualPerformance::checked_new`
+  - `Performance::{checked_calculate,checked_generate_state}`
+  - `[Mode]GradualDifficulty::checked_new`
+  - `[Mode]GradualPerformance::checked_new`
+  - `[Mode]Performance::{checked_calculate,checked_generate_state}`
+- New methods
+  - `Performance::{hitresult_generator,legacy_total_score}`
+  - `[Mode]Performance::{hitresults,hitresult_generator}`
+  - `OsuPerformance::legacy_total_score`
+
+
+### Changed
+
+- Slightly adjusted the beatmap suspicion check for taiko maps by increasing the
+  object threshold so that some long maps are no longer flagged.
+
+### Fixed
+
+- Fixed hitobject order for osu!mania for mods that create or mutate hitobjects.
+- Some mods were not considered when calculating `Strains`; fixed that
+- Replaced some remnant instances of `round` with `round_ties_even` to match C#
+
+## v3.1.0 (2025-06-03)
+
+- Added the method `Beatmap::check_suspicion`.
+  Some maps are not meant to be played but just test the limits of osu! itself.
+  Calculating attributes on these maps may be very expensive so it is
+  recommended to always check an unknown map's suspicion before difficulty
+  and/or performance calculation. ([#56])
+- Added the variant `HitResultPriority::Fastest`.
+  It is highly recommended to specify this variant for performance calculation
+  if only accuracy is given but no specific hitresults. Otherwise, generating
+  hitresults that best match the given accuracy may be very slow. ([#58])
+
+## v3.0.0 (2025-04-07)
+
+Updated all modes' difficulty and performance calculation. See PR [#51] or osu!'s newspost for more info: <https://osu.ppy.sh/home/news/2025-03-06-performance-points-star-rating-updates>
+
+- __Breaking changes:__
+  - Added fields:
+    - `OsuDifficultyAttributes.aim_difficult_slider_count`
+    - `OsuDifficultyAttributes.great_hit_window`
+    - `OsuDifficultyAttributes.ok_hit_window`
+    - `OsuDifficultyAttributes.meh_hit_window`
+    - `OsuPerformanceAttributes.speed_deviation`
+    - `TaikoDifficultyAttributes.reading`
+    - `TaikoStrains.reading`
+    - `HitWindows.od_meh`
+    - `EffectPoint.scroll_speed`
+  - Removed fields:
+    - `OsuDifficultyAttributes.od` (added the method `OsuDifficultyAttributes::od`)
+    - `TaikoDifficultyAttributes.peak`
+    - `ManiaDifficultyAttributes.hit_window`
+  - `GameMods` is now a wrapping *enum* around `rosu_mods`' types instead of a struct
+  - The method `ManiaScoreState::accuracy` now takes an additional `bool` argument whether to calculate classic or lazer accuracy ([#53])
+  - The method `EffectPoint::is_redundant` is no longer const
+
+- New mods considered in difficulty and performance calculation:
+  - taiko: `Random`
+  - mania: `HoldOff`, `Invert`, `Random`
+
+## v2.0.0 (2024-12-03)
+
+Updated all modes' difficulty and performance calculation. See osu!'s newspost for more info: <https://osu.ppy.sh/home/news/2024-10-28-performance-points-star-rating-updates>
+
+- __Breaking changes:__
+  - Removed the `Converted` type. Only using `Beatmap` now.
+  - Converting a `Beatmap` is now done through the methods `convert`, `convert_ref`, or `convert_mut`
+  - Replaced `Difficulty::with_mode` with the methods `Difficulty::*_for_mode` to calculate for a specific mode
+  - Multiple methods are now fallible with the error type `ConvertError` in case the given beatmap
+    had to be converted but conversion failed. These methods include:
+      - `[Mode]Performance::generate_state`
+      - `[Mode]Performance::calculate`
+      - `[Mode]GradualDifficulty::new`
+      - `[Mode]GradualPerformance::new`
+  - `OsuScoreState` no longer implements `Copy` and now has the additional fields `large_tick_hits`, 
+    `small_tick_hits`, and `slider_end_hits` which are important to specify for lazer scores.
+    Similarly, `ScoreState` has the additional fields `osu_large_tick_hits`, `osu_small_tick_hits`,
+    and `slider_end_hits`.
+  - Removed the trait methods `check_convert` and `try_convert` from `IGameMode`
+  - The field `HitWindows::od` has been renamed to `od_great` and the field `HitWindows::od_ok` has been added
+  - Added the field `TaikoStrains::single_color_stamina`
+  - Added multiple fields to difficulty and performance attribute types:
+    - `ManiaDifficultyAttributes::n_hold_notes`
+    - `OsuDifficultyAttributes::aim_difficult_strain_count`
+    - `OsuDifficultyAttributes::speed_difficult_strain_count`
+    - `OsuDifficultyAttributes::n_large_ticks`
+    - `TaikoPerformanceAttributes::estimated_unstable_rate`
+    - `TaikoDifficultyAttributes::mono_stamina_factor`
+    - `TaikoDifficultyAttributes::ok_hit_window`
+    - Renamed `TaikoDifficultyAttributes::hit_window` to `great_hit_window`
+  - The method `OsuScoreState::accuracy` now takes an `OsuScoreOrigin` as argument
+  - Bumped both the dependencies `rosu-map` and `rosu-mods` to their version `0.2`
+  - The `compact_strains` feature has been removed. Instead, there now is a `raw_strains` feature
+    which is *not* enabled by default.
+
+- __Additions:__
+  - osu!standard and osu!mania performance calculation now differs between lazer and stable so there
+    are methods like `OsuPerformance::lazer`, `Difficulty::lazer`, ... to specify a boolean. **Defaults to `true`**
+  - Added the methods `large_tick_hits`, `small_tickhits`, and `slider_end_hits` for `OsuPerformance` and
+    `Performance`. These are important to be specified for lazer scores.
+
+## v1.1.0 (2024-07-10)
 
 - __Additions:__
   - Mods no longer need to be specified through their legacy bitflags. Instead, [`rosu-mods`] is being used to accept any type that's convertible into the new `rosu-pp` type "`GameMods`". Currently, those types are:
@@ -354,6 +519,7 @@ Big changes including the most recent [osu!](https://osu.ppy.sh/home/news/2022-0
   - Fixed pp calculation on HR
 
 [@Pure-Peace]: https://github.com/Pure-Peace
+[@tsunyoku]: https://github.com/tsunyoku
 
 [#1]: https://github.com/MaxOhn/rosu-pp/pull/1
 [#2]: https://github.com/MaxOhn/rosu-pp/pull/2
@@ -371,6 +537,13 @@ Big changes including the most recent [osu!](https://osu.ppy.sh/home/news/2022-0
 [#34]: https://github.com/MaxOhn/rosu-pp/pull/34
 [#35]: https://github.com/MaxOhn/rosu-pp/pull/35
 [#36]: https://github.com/MaxOhn/rosu-pp/pull/36
+[#51]: https://github.com/MaxOhn/rosu-pp/pull/51
+[#53]: https://github.com/MaxOhn/rosu-pp/pull/53
+[#56]: https://github.com/MaxOhn/rosu-pp/pull/56
+[#58]: https://github.com/MaxOhn/rosu-pp/pull/58
+[#68]: https://github.com/MaxOhn/rosu-pp/pull/68
+[#69]: https://github.com/MaxOhn/rosu-pp/pull/69
+[#71]: https://github.com/MaxOhn/rosu-pp/pull/71
 
 [ZST]: https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts
 [`rosu-map`]: https://github.com/MaxOhn/rosu-map

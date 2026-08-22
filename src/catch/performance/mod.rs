@@ -1,25 +1,28 @@
-use std::cmp::{self, Ordering};
-
 use rosu_map::section::general::GameMode;
 
+use self::calculator::CatchPerformanceCalculator;
+
 use crate::{
-    any::{Difficulty, IntoModePerformance, IntoPerformance},
+    Performance,
+    any::{
+        CalculateError, Difficulty, HitResultGenerator, InspectablePerformance,
+        IntoModePerformance, IntoPerformance, hitresult_generator::Fast,
+    },
+    catch::{CatchHitResults, performance::inspect::InspectCatchPerformance},
     model::{mode::ConvertError, mods::GameMods},
     osu::OsuPerformance,
     util::map_or_attrs::MapOrAttrs,
-    Performance,
 };
 
-use super::{
-    attributes::{CatchDifficultyAttributes, CatchPerformanceAttributes},
-    score_state::CatchScoreState,
-    Catch,
-};
+use super::{Catch, attributes::CatchPerformanceAttributes, score_state::CatchScoreState};
 
+mod calculator;
 pub mod gradual;
+mod hitresult_generator;
+mod inspect;
 
 /// Performance calculator on osu!catch maps.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 #[must_use]
 pub struct CatchPerformance<'map> {
     map_or_attrs: MapOrAttrs<'map, Catch>,
@@ -31,6 +34,35 @@ pub struct CatchPerformance<'map> {
     tiny_droplets: Option<u32>,
     tiny_droplet_misses: Option<u32>,
     misses: Option<u32>,
+    hitresult_generator: Option<fn(InspectCatchPerformance<'_>) -> CatchHitResults>,
+}
+
+// Manual implementation because of the `hitresult_generator` function pointer
+impl PartialEq for CatchPerformance<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            map_or_attrs,
+            difficulty,
+            acc,
+            combo,
+            fruits,
+            droplets,
+            tiny_droplets,
+            tiny_droplet_misses,
+            misses,
+            hitresult_generator: _,
+        } = self;
+
+        map_or_attrs == &other.map_or_attrs
+            && difficulty == &other.difficulty
+            && acc == &other.acc
+            && combo == &other.combo
+            && fruits == &other.fruits
+            && droplets == &other.droplets
+            && tiny_droplets == &other.tiny_droplets
+            && tiny_droplet_misses == &other.tiny_droplet_misses
+            && misses == &other.misses
+    }
 }
 
 impl<'map> CatchPerformance<'map> {
@@ -50,6 +82,7 @@ impl<'map> CatchPerformance<'map> {
     /// Otherwise, the final attributes will be incorrect.
     ///
     /// [`Beatmap`]: crate::model::beatmap::Beatmap
+    /// [`CatchDifficultyAttributes`]: crate::catch::CatchDifficultyAttributes
     pub fn new(map_or_attrs: impl IntoModePerformance<'map, Catch>) -> Self {
         map_or_attrs.into_performance()
     }
@@ -166,60 +199,60 @@ impl<'map> CatchPerformance<'map> {
 
     /// Override a beatmap's set AR.
     ///
-    /// `with_mods` determines if the given value should be used before
+    /// `fixed` determines if the given value should be used before
     /// or after accounting for mods, e.g. on `true` the value will be
     /// used as is and on `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn ar(mut self, ar: f32, with_mods: bool) -> Self {
-        self.difficulty = self.difficulty.ar(ar, with_mods);
+    pub fn ar(mut self, ar: f32, fixed: bool) -> Self {
+        self.difficulty = self.difficulty.ar(ar, fixed);
 
         self
     }
 
     /// Override a beatmap's set CS.
     ///
-    /// `with_mods` determines if the given value should be used before
+    /// `fixed` determines if the given value should be used before
     /// or after accounting for mods, e.g. on `true` the value will be
     /// used as is and on `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn cs(mut self, cs: f32, with_mods: bool) -> Self {
-        self.difficulty = self.difficulty.cs(cs, with_mods);
+    pub fn cs(mut self, cs: f32, fixed: bool) -> Self {
+        self.difficulty = self.difficulty.cs(cs, fixed);
 
         self
     }
 
     /// Override a beatmap's set HP.
     ///
-    /// `with_mods` determines if the given value should be used before
+    /// `fixed` determines if the given value should be used before
     /// or after accounting for mods, e.g. on `true` the value will be
     /// used as is and on `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn hp(mut self, hp: f32, with_mods: bool) -> Self {
-        self.difficulty = self.difficulty.hp(hp, with_mods);
+    pub fn hp(mut self, hp: f32, fixed: bool) -> Self {
+        self.difficulty = self.difficulty.hp(hp, fixed);
 
         self
     }
 
     /// Override a beatmap's set OD.
     ///
-    /// `with_mods` determines if the given value should be used before
+    /// `fixed` determines if the given value should be used before
     /// or after accounting for mods, e.g. on `true` the value will be
     /// used as is and on `false` it will be modified based on the mods.
     ///
     /// | Minimum | Maximum |
     /// | :-----: | :-----: |
     /// | -20     | 20      |
-    pub fn od(mut self, od: f32, with_mods: bool) -> Self {
-        self.difficulty = self.difficulty.od(od, with_mods);
+    pub fn od(mut self, od: f32, fixed: bool) -> Self {
+        self.difficulty = self.difficulty.od(od, fixed);
 
         self
     }
@@ -231,19 +264,45 @@ impl<'map> CatchPerformance<'map> {
         self
     }
 
+    /// Specify how hitresults should be generated.
+    pub fn hitresult_generator<H: HitResultGenerator<Catch>>(self) -> CatchPerformance<'map> {
+        CatchPerformance {
+            map_or_attrs: self.map_or_attrs,
+            difficulty: self.difficulty,
+            acc: self.acc,
+            combo: self.combo,
+            fruits: self.fruits,
+            droplets: self.droplets,
+            tiny_droplets: self.tiny_droplets,
+            tiny_droplet_misses: self.tiny_droplet_misses,
+            misses: self.misses,
+            hitresult_generator: Some(H::generate_hitresults),
+        }
+    }
+
     /// Provide parameters through an [`CatchScoreState`].
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value, reason = "more sensible")]
     pub const fn state(mut self, state: CatchScoreState) -> Self {
         let CatchScoreState {
             max_combo,
+            hitresults,
+        } = state;
+
+        self.combo = Some(max_combo);
+
+        self.hitresults(hitresults)
+    }
+
+    /// Provide parameters through [`CatchHitResults`].
+    pub const fn hitresults(mut self, hitresults: CatchHitResults) -> Self {
+        let CatchHitResults {
             fruits: n_fruits,
             droplets: n_droplets,
             tiny_droplets: n_tiny_droplets,
             tiny_droplet_misses: n_tiny_droplet_misses,
             misses,
-        } = state;
+        } = hitresults;
 
-        self.combo = Some(max_combo);
         self.fruits = Some(n_fruits);
         self.droplets = Some(n_droplets);
         self.tiny_droplets = Some(n_tiny_droplets);
@@ -261,176 +320,53 @@ impl<'map> CatchPerformance<'map> {
         self
     }
 
-    /// Create the [`CatchScoreState`] that will be used for performance calculation.
-    #[allow(clippy::too_many_lines)]
+    /// Create the [`CatchScoreState`] that will be used for performance
+    /// calculation.
+    ///
+    /// If this [`CatchPerformance`] contained a [`Beatmap`], it will be
+    /// replaced by [`CatchDifficultyAttributes`].
+    ///
+    /// [`Beatmap`]: crate::Beatmap
+    /// [`CatchDifficultyAttributes`]: crate::catch::CatchDifficultyAttributes
     pub fn generate_state(&mut self) -> Result<CatchScoreState, ConvertError> {
-        let attrs = match self.map_or_attrs {
-            MapOrAttrs::Map(ref map) => {
-                let attrs = self.difficulty.calculate_for_mode::<Catch>(map)?;
+        self.map_or_attrs.insert_attrs(&self.difficulty)?;
 
-                self.map_or_attrs.insert_attrs(attrs)
-            }
-            MapOrAttrs::Attrs(ref attrs) => attrs,
-        };
+        // SAFETY: We just calculated and inserted the attributes.
+        let state = unsafe { generate_state(self) };
 
-        let misses = self
-            .misses
-            .map_or(0, |n| cmp::min(n, attrs.n_fruits + attrs.n_droplets));
+        Ok(state)
+    }
 
-        let max_combo = self.combo.unwrap_or_else(|| attrs.max_combo() - misses);
+    /// Same as [`CatchPerformance::generate_state`] but verifies that the map
+    /// was not suspicious.
+    pub fn checked_generate_state(&mut self) -> Result<CatchScoreState, CalculateError> {
+        self.map_or_attrs.checked_insert_attrs(&self.difficulty)?;
 
-        let mut best_state = CatchScoreState {
-            max_combo,
-            misses,
-            ..Default::default()
-        };
+        // SAFETY: We just calculated and inserted the attributes.
+        let state = unsafe { generate_state(self) };
 
-        let mut best_dist = f64::INFINITY;
-
-        let (n_fruits, n_droplets) = match (self.fruits, self.droplets) {
-            (Some(mut n_fruits), Some(mut n_droplets)) => {
-                let n_remaining = (attrs.n_fruits + attrs.n_droplets)
-                    .saturating_sub(n_fruits + n_droplets + misses);
-
-                let new_droplets =
-                    cmp::min(n_remaining, attrs.n_droplets.saturating_sub(n_droplets));
-                n_droplets += new_droplets;
-                n_fruits += n_remaining - new_droplets;
-
-                n_fruits = cmp::min(
-                    n_fruits,
-                    (attrs.n_fruits + attrs.n_droplets).saturating_sub(n_droplets + misses),
-                );
-                n_droplets = cmp::min(
-                    n_droplets,
-                    attrs.n_fruits + attrs.n_droplets - n_fruits - misses,
-                );
-
-                (n_fruits, n_droplets)
-            }
-            (Some(mut n_fruits), None) => {
-                let n_droplets = attrs
-                    .n_droplets
-                    .saturating_sub(misses.saturating_sub(attrs.n_fruits.saturating_sub(n_fruits)));
-
-                n_fruits = attrs.n_fruits + attrs.n_droplets - misses - n_droplets;
-
-                (n_fruits, n_droplets)
-            }
-            (None, Some(mut n_droplets)) => {
-                let n_fruits = attrs.n_fruits.saturating_sub(
-                    misses.saturating_sub(attrs.n_droplets.saturating_sub(n_droplets)),
-                );
-
-                n_droplets = attrs.n_fruits + attrs.n_droplets - misses - n_fruits;
-
-                (n_fruits, n_droplets)
-            }
-            (None, None) => {
-                let n_droplets = attrs.n_droplets.saturating_sub(misses);
-                let n_fruits =
-                    attrs.n_fruits - (misses - (attrs.n_droplets.saturating_sub(n_droplets)));
-
-                (n_fruits, n_droplets)
-            }
-        };
-
-        best_state.fruits = n_fruits;
-        best_state.droplets = n_droplets;
-
-        let mut find_best_tiny_droplets = |acc: f64| {
-            let raw_tiny_droplets = acc
-                * f64::from(attrs.n_fruits + attrs.n_droplets + attrs.n_tiny_droplets)
-                - f64::from(n_fruits + n_droplets);
-            let min_tiny_droplets =
-                cmp::min(attrs.n_tiny_droplets, raw_tiny_droplets.floor() as u32);
-            let max_tiny_droplets =
-                cmp::min(attrs.n_tiny_droplets, raw_tiny_droplets.ceil() as u32);
-
-            for n_tiny_droplets in min_tiny_droplets..=max_tiny_droplets {
-                let n_tiny_droplet_misses = attrs.n_tiny_droplets - n_tiny_droplets;
-
-                let curr_acc = accuracy(
-                    n_fruits,
-                    n_droplets,
-                    n_tiny_droplets,
-                    n_tiny_droplet_misses,
-                    misses,
-                );
-                let curr_dist = (acc - curr_acc).abs();
-
-                if curr_dist < best_dist {
-                    best_dist = curr_dist;
-                    best_state.tiny_droplets = n_tiny_droplets;
-                    best_state.tiny_droplet_misses = n_tiny_droplet_misses;
-                }
-            }
-        };
-
-        #[allow(clippy::single_match_else)]
-        match (self.tiny_droplets, self.tiny_droplet_misses) {
-            (Some(n_tiny_droplets), Some(n_tiny_droplet_misses)) => match self.acc {
-                Some(acc) => {
-                    match (n_tiny_droplets + n_tiny_droplet_misses).cmp(&attrs.n_tiny_droplets) {
-                        Ordering::Equal => {
-                            best_state.tiny_droplets = n_tiny_droplets;
-                            best_state.tiny_droplet_misses = n_tiny_droplet_misses;
-                        }
-                        Ordering::Less | Ordering::Greater => find_best_tiny_droplets(acc),
-                    }
-                }
-                None => {
-                    let n_remaining = attrs
-                        .n_tiny_droplets
-                        .saturating_sub(n_tiny_droplets + n_tiny_droplet_misses);
-
-                    best_state.tiny_droplets = n_tiny_droplets + n_remaining;
-                    best_state.tiny_droplet_misses = n_tiny_droplet_misses;
-                }
-            },
-            (Some(n_tiny_droplets), None) => {
-                best_state.tiny_droplets = cmp::min(attrs.n_tiny_droplets, n_tiny_droplets);
-                best_state.tiny_droplet_misses =
-                    attrs.n_tiny_droplets.saturating_sub(n_tiny_droplets);
-            }
-            (None, Some(n_tiny_droplet_misses)) => {
-                best_state.tiny_droplets =
-                    attrs.n_tiny_droplets.saturating_sub(n_tiny_droplet_misses);
-                best_state.tiny_droplet_misses =
-                    cmp::min(attrs.n_tiny_droplets, n_tiny_droplet_misses);
-            }
-            (None, None) => match self.acc {
-                Some(acc) => find_best_tiny_droplets(acc),
-                None => best_state.tiny_droplets = attrs.n_tiny_droplets,
-            },
-        }
-
-        self.combo = Some(best_state.max_combo);
-        self.fruits = Some(best_state.fruits);
-        self.droplets = Some(best_state.droplets);
-        self.tiny_droplets = Some(best_state.tiny_droplets);
-        self.tiny_droplet_misses = Some(best_state.tiny_droplet_misses);
-        self.misses = Some(best_state.misses);
-
-        Ok(best_state)
+        Ok(state)
     }
 
     /// Calculate all performance related values, including pp and stars.
     pub fn calculate(mut self) -> Result<CatchPerformanceAttributes, ConvertError> {
         let state = self.generate_state()?;
 
-        let attrs = match self.map_or_attrs {
-            MapOrAttrs::Attrs(attrs) => attrs,
-            MapOrAttrs::Map(ref map) => self.difficulty.calculate_for_mode::<Catch>(map)?,
-        };
+        // SAFETY: Attributes are calculated in `generate_state`.
+        let attrs = unsafe { self.map_or_attrs.into_attrs() };
 
-        let inner = CatchPerformanceInner {
-            attrs,
-            mods: self.difficulty.get_mods(),
-            state,
-        };
+        Ok(CatchPerformanceCalculator::new(attrs, self.difficulty.get_mods(), state).calculate())
+    }
 
-        Ok(inner.calculate())
+    /// Same as [`CatchPerformance::calculate`] but verifies that the map was
+    /// not suspicious.
+    pub fn checked_calculate(mut self) -> Result<CatchPerformanceAttributes, CalculateError> {
+        let state = self.checked_generate_state()?;
+
+        // SAFETY: Attributes are calculated in `checked_generate_state`.
+        let attrs = unsafe { self.map_or_attrs.into_attrs() };
+
+        Ok(CatchPerformanceCalculator::new(attrs, self.difficulty.get_mods(), state).calculate())
     }
 
     pub(crate) const fn from_map_or_attrs(map_or_attrs: MapOrAttrs<'map, Catch>) -> Self {
@@ -444,6 +380,7 @@ impl<'map> CatchPerformance<'map> {
             tiny_droplets: None,
             tiny_droplet_misses: None,
             misses: None,
+            hitresult_generator: None,
         }
     }
 }
@@ -474,12 +411,15 @@ impl<'map> TryFrom<OsuPerformance<'map>> for CatchPerformance<'map> {
             acc,
             combo,
             large_tick_hits: _,
+            small_tick_hits: _,
             slider_end_hits: _,
             n300,
             n100,
             n50,
             misses,
             hitresult_priority: _,
+            hitresult_generator: _,
+            legacy_total_score: _,
         } = osu;
 
         Ok(Self {
@@ -492,6 +432,7 @@ impl<'map> TryFrom<OsuPerformance<'map>> for CatchPerformance<'map> {
             tiny_droplets: n50,
             tiny_droplet_misses: None,
             misses,
+            hitresult_generator: None,
         })
     }
 }
@@ -502,112 +443,54 @@ impl<'map, T: IntoModePerformance<'map, Catch>> From<T> for CatchPerformance<'ma
     }
 }
 
-struct CatchPerformanceInner<'mods> {
-    attrs: CatchDifficultyAttributes,
-    mods: &'mods GameMods,
-    state: CatchScoreState,
-}
+/// # Safety
+/// Caller must ensure that the internal [`MapOrAttrs`] contains attributes.
+unsafe fn generate_state(perf: &mut CatchPerformance) -> CatchScoreState {
+    // SAFETY: Ensured by caller
+    let attrs = unsafe { perf.map_or_attrs.get_attrs() };
 
-impl CatchPerformanceInner<'_> {
-    fn calculate(self) -> CatchPerformanceAttributes {
-        let attributes = &self.attrs;
-        let stars = attributes.stars;
-        let max_combo = attributes.max_combo();
+    let inspect = Catch::inspect_performance(perf, attrs);
 
-        // Relying heavily on aim
-        let mut pp = (5.0 * (stars / 0.0049).max(1.0) - 4.0).powf(2.0) / 100_000.0;
+    let misses = inspect.misses();
+    let max_combo = perf.combo.unwrap_or_else(|| attrs.max_combo() - misses);
 
-        let mut combo_hits = self.combo_hits();
+    let hitresults = match perf.hitresult_generator {
+        Some(generator) => generator(inspect),
+        None => <Fast as HitResultGenerator<Catch>>::generate_hitresults(inspect),
+    };
 
-        if combo_hits == 0 {
-            combo_hits = max_combo;
-        }
+    let CatchHitResults {
+        fruits,
+        droplets,
+        tiny_droplets,
+        tiny_droplet_misses,
+        misses,
+    } = hitresults;
 
-        // Longer maps are worth more
-        let mut len_bonus = 0.95 + 0.3 * (f64::from(combo_hits) / 2500.0).min(1.0);
+    perf.combo = Some(max_combo);
+    perf.fruits = Some(fruits);
+    perf.droplets = Some(droplets);
+    perf.tiny_droplets = Some(tiny_droplets);
+    perf.tiny_droplet_misses = Some(tiny_droplet_misses);
+    perf.misses = Some(misses);
 
-        if combo_hits > 2500 {
-            len_bonus += (f64::from(combo_hits) / 2500.0).log10() * 0.475;
-        }
-
-        pp *= len_bonus;
-
-        // Penalize misses exponentially
-        pp *= 0.97_f64.powf(f64::from(self.state.misses));
-
-        // Combo scaling
-        if self.state.max_combo > 0 {
-            pp *= (f64::from(self.state.max_combo).powf(0.8) / f64::from(max_combo).powf(0.8))
-                .min(1.0);
-        }
-
-        // AR scaling
-        let ar = attributes.ar;
-        let mut ar_factor = 1.0;
-        if ar > 9.0 {
-            ar_factor += 0.1 * (ar - 9.0) + f64::from(u8::from(ar > 10.0)) * 0.1 * (ar - 10.0);
-        } else if ar < 8.0 {
-            ar_factor += 0.025 * (8.0 - ar);
-        }
-        pp *= ar_factor;
-
-        // HD bonus
-        if self.mods.hd() {
-            if ar <= 10.0 {
-                pp *= 1.05 + 0.075 * (10.0 - ar);
-            } else if ar > 10.0 {
-                pp *= 1.01 + 0.04 * (11.0 - ar.min(11.0));
-            }
-        }
-
-        // FL bonus
-        if self.mods.fl() {
-            pp *= 1.35 * len_bonus;
-        }
-
-        // Accuracy scaling
-        pp *= self.state.accuracy().powf(5.5);
-
-        // NF penalty
-        if self.mods.nf() {
-            pp *= (1.0 - 0.02 * f64::from(self.state.misses)).max(0.9);
-        }
-
-        CatchPerformanceAttributes {
-            difficulty: self.attrs,
-            pp,
-        }
+    CatchScoreState {
+        max_combo,
+        hitresults,
     }
-
-    const fn combo_hits(&self) -> u32 {
-        self.state.fruits + self.state.droplets + self.state.misses
-    }
-}
-
-fn accuracy(
-    n_fruits: u32,
-    n_droplets: u32,
-    n_tiny_droplets: u32,
-    n_tiny_droplet_misses: u32,
-    misses: u32,
-) -> f64 {
-    let numerator = n_fruits + n_droplets + n_tiny_droplets;
-    let denominator = numerator + n_tiny_droplet_misses + misses;
-
-    f64::from(numerator) / f64::from(denominator)
 }
 
 #[cfg(test)]
 mod test {
     use std::sync::OnceLock;
 
-    use proptest::prelude::*;
     use rosu_map::section::general::GameMode;
 
     use crate::{
-        any::{DifficultyAttributes, PerformanceAttributes},
-        osu::{OsuDifficultyAttributes, OsuPerformanceAttributes},
         Beatmap,
+        any::{DifficultyAttributes, PerformanceAttributes},
+        catch::CatchDifficultyAttributes,
+        osu::{OsuDifficultyAttributes, OsuPerformanceAttributes},
     };
 
     use super::*;
@@ -637,167 +520,6 @@ mod test {
             .to_owned()
     }
 
-    /// Checks all remaining hitresult combinations w.r.t. the given parameters
-    /// and returns the [`CatchScoreState`] that matches `acc` the best.
-    ///
-    /// Very slow but accurate.
-    fn brute_force_best(
-        acc: f64,
-        n_fruits: Option<u32>,
-        n_droplets: Option<u32>,
-        n_tiny_droplets: Option<u32>,
-        n_tiny_droplet_misses: Option<u32>,
-        misses: u32,
-    ) -> CatchScoreState {
-        let misses = cmp::min(misses, N_FRUITS + N_DROPLETS);
-
-        let mut best_state = CatchScoreState {
-            max_combo: N_FRUITS + N_DROPLETS - misses,
-            misses,
-            ..Default::default()
-        };
-
-        let mut best_dist = f64::INFINITY;
-
-        let (new_fruits, new_droplets) = match (n_fruits, n_droplets) {
-            (Some(mut n_fruits), Some(mut n_droplets)) => {
-                let n_remaining =
-                    (N_FRUITS + N_DROPLETS).saturating_sub(n_fruits + n_droplets + misses);
-
-                let new_droplets = cmp::min(n_remaining, N_DROPLETS.saturating_sub(n_droplets));
-                n_droplets += new_droplets;
-                n_fruits += n_remaining - new_droplets;
-
-                n_fruits = cmp::min(
-                    n_fruits,
-                    (N_FRUITS + N_DROPLETS).saturating_sub(n_droplets + misses),
-                );
-                n_droplets = cmp::min(n_droplets, N_FRUITS + N_DROPLETS - n_fruits - misses);
-
-                (n_fruits, n_droplets)
-            }
-            (Some(mut n_fruits), None) => {
-                let n_droplets = N_DROPLETS
-                    .saturating_sub(misses.saturating_sub(N_FRUITS.saturating_sub(n_fruits)));
-                n_fruits = N_FRUITS + N_DROPLETS - misses - n_droplets;
-
-                (n_fruits, n_droplets)
-            }
-            (None, Some(mut n_droplets)) => {
-                let n_fruits = N_FRUITS
-                    .saturating_sub(misses.saturating_sub(N_DROPLETS.saturating_sub(n_droplets)));
-                n_droplets = N_FRUITS + N_DROPLETS - misses - n_fruits;
-
-                (n_fruits, n_droplets)
-            }
-            (None, None) => {
-                let n_droplets = N_DROPLETS.saturating_sub(misses);
-                let n_fruits = N_FRUITS - (misses - (N_DROPLETS.saturating_sub(n_droplets)));
-
-                (n_fruits, n_droplets)
-            }
-        };
-
-        best_state.fruits = new_fruits;
-        best_state.droplets = new_droplets;
-
-        let (min_tiny_droplets, max_tiny_droplets) = match (n_tiny_droplets, n_tiny_droplet_misses)
-        {
-            (Some(n_tiny_droplets), Some(n_tiny_droplet_misses)) => {
-                match (n_tiny_droplets + n_tiny_droplet_misses).cmp(&N_TINY_DROPLETS) {
-                    Ordering::Equal => (
-                        cmp::min(N_TINY_DROPLETS, n_tiny_droplets),
-                        cmp::min(N_TINY_DROPLETS, n_tiny_droplets),
-                    ),
-                    Ordering::Less | Ordering::Greater => (0, N_TINY_DROPLETS),
-                }
-            }
-            (Some(n_tiny_droplets), None) => (
-                cmp::min(N_TINY_DROPLETS, n_tiny_droplets),
-                cmp::min(N_TINY_DROPLETS, n_tiny_droplets),
-            ),
-            (None, Some(n_tiny_droplet_misses)) => (
-                N_TINY_DROPLETS.saturating_sub(n_tiny_droplet_misses),
-                N_TINY_DROPLETS.saturating_sub(n_tiny_droplet_misses),
-            ),
-            (None, None) => (0, N_TINY_DROPLETS),
-        };
-
-        for new_tiny_droplets in min_tiny_droplets..=max_tiny_droplets {
-            let new_tiny_droplet_misses = N_TINY_DROPLETS - new_tiny_droplets;
-
-            let curr_acc = accuracy(
-                new_fruits,
-                new_droplets,
-                new_tiny_droplets,
-                new_tiny_droplet_misses,
-                misses,
-            );
-
-            let curr_dist = (acc - curr_acc).abs();
-
-            if curr_dist < best_dist {
-                best_dist = curr_dist;
-                best_state.tiny_droplets = new_tiny_droplets;
-                best_state.tiny_droplet_misses = new_tiny_droplet_misses;
-            }
-        }
-
-        best_state
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
-
-        #[test]
-        fn hitresults(
-            acc in 0.0..=1.0,
-            n_fruits in prop::option::weighted(0.10, 0_u32..=N_FRUITS + 10),
-            n_droplets in prop::option::weighted(0.10, 0_u32..=N_DROPLETS + 10),
-            n_tiny_droplets in prop::option::weighted(0.10, 0_u32..=N_TINY_DROPLETS + 10),
-            n_tiny_droplet_misses in prop::option::weighted(0.10, 0_u32..=N_TINY_DROPLETS + 10),
-            n_misses in prop::option::weighted(0.15, 0_u32..=N_FRUITS + N_DROPLETS + 10),
-        ) {
-            let mut state = CatchPerformance::from(attrs())
-                .accuracy(acc * 100.0);
-
-            if let Some(n_fruits) = n_fruits {
-                state = state.fruits(n_fruits);
-            }
-
-            if let Some(n_droplets) = n_droplets {
-                state = state.droplets(n_droplets);
-            }
-
-            if let Some(n_tiny_droplets) = n_tiny_droplets {
-                state = state.tiny_droplets(n_tiny_droplets);
-            }
-
-            if let Some(n_tiny_droplet_misses) = n_tiny_droplet_misses {
-                state = state.tiny_droplet_misses(n_tiny_droplet_misses);
-            }
-
-            if let Some(misses) = n_misses {
-                state = state.misses(misses);
-            }
-
-            let first = state.generate_state().unwrap();
-            let state = state.generate_state().unwrap();
-            assert_eq!(first, state);
-
-            let expected = brute_force_best(
-                acc,
-                n_fruits,
-                n_droplets,
-                n_tiny_droplets,
-                n_tiny_droplet_misses,
-                n_misses.unwrap_or(0),
-            );
-
-            assert_eq!(state, expected);
-        }
-    }
-
     #[test]
     fn fruits_missing_objects() {
         let state = CatchPerformance::from(attrs())
@@ -811,11 +533,15 @@ mod test {
 
         let expected = CatchScoreState {
             max_combo: N_FRUITS + N_DROPLETS - 2,
-            fruits: N_FRUITS - 2,
-            droplets: N_DROPLETS,
-            tiny_droplets: N_TINY_DROPLETS - 20,
-            tiny_droplet_misses: 20,
-            misses: 2,
+            hitresults: {
+                CatchHitResults {
+                    fruits: N_FRUITS - 2,
+                    droplets: N_DROPLETS,
+                    tiny_droplets: N_TINY_DROPLETS - 20,
+                    tiny_droplet_misses: 20,
+                    misses: 2,
+                }
+            },
         };
 
         assert_eq!(state, expected);
@@ -851,19 +577,24 @@ mod test {
         let _ = CatchDifficultyAttributes::default().performance();
         let _ = CatchPerformanceAttributes::default().performance();
 
-        assert!(map
-            .convert_mut(GameMode::Osu, &GameMods::default())
-            .is_err());
+        assert!(
+            map.convert_mut(GameMode::Osu, &GameMods::default())
+                .is_err()
+        );
 
         assert!(CatchPerformance::try_new(OsuDifficultyAttributes::default()).is_none());
         assert!(CatchPerformance::try_new(OsuPerformanceAttributes::default()).is_none());
-        assert!(CatchPerformance::try_new(DifficultyAttributes::Osu(
-            OsuDifficultyAttributes::default()
-        ))
-        .is_none());
-        assert!(CatchPerformance::try_new(PerformanceAttributes::Osu(
-            OsuPerformanceAttributes::default()
-        ))
-        .is_none());
+        assert!(
+            CatchPerformance::try_new(
+                DifficultyAttributes::Osu(OsuDifficultyAttributes::default())
+            )
+            .is_none()
+        );
+        assert!(
+            CatchPerformance::try_new(PerformanceAttributes::Osu(
+                OsuPerformanceAttributes::default()
+            ))
+            .is_none()
+        );
     }
 }

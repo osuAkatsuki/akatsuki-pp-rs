@@ -5,26 +5,35 @@
 //! while also providing a significant [boost in performance](#speed).
 //!
 //! Last commits of the ported code:
-//!   - [osu!lazer] : `8bd65d9938a10fc42e6409501b0282f0fa4a25ef` (2024-11-08)
-//!   - [osu!tools] : `89b8f3b1c2e4e5674004eac4723120e7d3aef997` (2024-11-03)
+//!   - [osu!lazer] : `28c846b4d9366484792e27f4729cd1afa2cdeb66` (2025-10-13)
+//!   - [osu!tools] : `ab97b64f60901952926b2121ddffb8976d7f8775` (2025-10-16)
 //!
-//! News posts of the latest updates: <https://osu.ppy.sh/home/news/2024-10-28-performance-points-star-rating-updates>
+//! News posts of the latest updates: <https://osu.ppy.sh/home/news/2025-10-29-performance-points-star-rating-updates>
 //!
 //! ## Usage
 //!
 //! ```
 //! // Decode the map
-//! let map = akatsuki_pp::Beatmap::from_path("./resources/2785319.osu").unwrap();
+//! let map = rosu_pp::Beatmap::from_path("./resources/2785319.osu").unwrap();
+//!
+//! // Whereas osu! simply times out on malicious maps, rosu-pp does not. To
+//! // prevent potential performance/memory issues, it is recommended to check
+//! // beforehand whether a map is too suspicious for further calculation.
+//! // Alternatively, using e.g. `checked_calculate` instead of `calculate`
+//! // performs the same suspicion check before calculating.
+//! if let Err(sus) = map.check_suspicion() {
+//!     panic!("{sus:?}");
+//! }
 //!
 //! // Calculate difficulty attributes
-//! let diff_attrs = akatsuki_pp::Difficulty::new()
+//! let diff_attrs = rosu_pp::Difficulty::new()
 //!     .mods(8 + 16) // HDHR
-//!     .calculate(&map);
+//!     .calculate(&map); // or `checked_calculate`
 //!
 //! let stars = diff_attrs.stars();
 //!
 //! // Calculate performance attributes
-//! let perf_attrs = akatsuki_pp::Performance::new(diff_attrs)
+//! let perf_attrs = rosu_pp::Performance::new(diff_attrs)
 //!     // To speed up the calculation, we used the previous attributes.
 //!     // **Note** that this should only be done if the map and all difficulty
 //!     // settings stay the same, otherwise the final attributes will be incorrect!
@@ -55,7 +64,7 @@
 //! score state.
 //!
 //! ```
-//! use akatsuki_pp::{Beatmap, GradualPerformance, Difficulty, any::ScoreState};
+//! use rosu_pp::{Beatmap, GradualPerformance, Difficulty, any::ScoreState};
 //!
 //! let map = Beatmap::from_path("./resources/1028484.osu").unwrap();
 //!
@@ -87,14 +96,14 @@
 //!
 //! ## Accuracy
 //!
-//! `rosu-pp` was tested against all current beatmaps on multiple mod combinations and delivered
+//! `rosu-pp` was tested against millions of real scores and delivered
 //! values that matched osu!lazer perfectly down to the last decimal place.
 //!
 //! However, there is one small caveat: the values are only this precise on debug mode.
 //! On release mode, Rust's compiler performs optimizations that produce the tiniest discrepancies
-//! due to floating point inaccuracies which can cascade into larger differences in the end.
-//! With this in mind, `rosu-pp` is still as accurate as can be without targeting the
-//! .NET compiler itself. Realistically, the inaccuracies in release mode are negligibly small.
+//! due to floating point inaccuracies. With this in mind, `rosu-pp` is still as accurate as can
+//! be without targeting the .NET compiler itself.
+//! Realistically, the inaccuracies in release mode are negligibly small.
 //!
 //! ## Speed
 //!
@@ -105,14 +114,14 @@
 //! Results of a rudimentary [benchmark] of osu!lazer and rosu-pp:
 //! ```txt
 //! osu!lazer:
-//! Decoding maps:            Median: 378.10ms | Mean: 381.47ms
-//! Calculating difficulties: Median: 588.89ms | Mean: 597.11ms
-//! Calculating performances: Median: 315.90µs | Mean: 310.60µs
+//! Decoding maps:            Median: 325.18ms | Mean: 325.50ms
+//! Calculating difficulties: Median: 568.63ms | Mean: 575.97ms
+//! Calculating performances: Median: 256.00µs | Mean: 240.40µs
 //!
 //! rosu-pp:
-//! Decoding maps:            Median: 46.94ms | Mean: 47.21ms
-//! Calculating difficulties: Median: 72.90ms | Mean: 73.13ms
-//! Calculating performances: Median: 44.13µs | Mean: 45.53µs
+//! Decoding maps:            Median: 46.03ms | Mean: 47.13ms
+//! Calculating difficulties: Median: 82.11ms | Mean: 84.27ms
+//! Calculating performances: Median: 40.57µs | Mean: 43.41µs
 //! ```
 //!
 //! ## Features
@@ -120,7 +129,6 @@
 //! | Flag          | Description         | Dependencies
 //! | ------------- | ------------------- | ------------
 //! | `default`     | No features enabled |
-//! | `raw_strains` | With this feature, internal strain values will be stored in a plain `Vec`. This introduces an out-of-memory risk on maliciously long maps (see [/b/3739922](https://osu.ppy.sh/b/3739922)), but comes with a ~5% gain in performance. |
 //! | `sync`        | Some gradual calculation types can only be shared across threads if this feature is enabled. This feature adds a small performance penalty. |
 //! | `tracing`     | Any error encountered during beatmap decoding will be logged through `tracing::error`. If this feature is **not** enabled, errors will be ignored. | [`tracing`]
 //!
@@ -153,7 +161,8 @@
     clippy::cast_sign_loss,
     clippy::explicit_iter_loop,
     clippy::similar_names,
-    clippy::cast_possible_wrap
+    clippy::cast_possible_wrap,
+    clippy::manual_midpoint
 )]
 
 #[doc(inline)]
@@ -161,6 +170,9 @@ pub use self::{
     any::{Difficulty, GradualDifficulty, GradualPerformance, Performance},
     model::{beatmap::Beatmap, mods::GameMods},
 };
+
+#[macro_use]
+mod util;
 
 /// Types for calculations of any mode.
 pub mod any;
@@ -177,10 +189,15 @@ pub mod catch;
 /// Types for osu!mania calculations.
 pub mod mania;
 
-/// Types for osu!standard 2019 for relax calculations.
+/// Types for osu!standard 2019-era PP calculations.
+///
+/// **Deprecated**: Use the [`osu`] module instead, which now supports
+/// Relax (RX) and Autopilot (AP) modes with modern formulas.
+#[deprecated(
+    since = "4.0.1",
+    note = "Use the `osu` module instead, which now supports RX and AP modes with modern formulas"
+)]
 pub mod osu_2019;
 
 /// Types used in and around this crate.
 pub mod model;
-
-mod util;

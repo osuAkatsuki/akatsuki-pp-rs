@@ -1,18 +1,19 @@
 use rosu_map::section::general::GameMode;
 
 use crate::{
+    Difficulty, GameMods,
+    any::CalculateError,
     model::{
         beatmap::Beatmap,
         mode::{ConvertError, IGameMode},
     },
-    Difficulty, GameMods,
 };
 
 pub use self::{
     attributes::{ManiaDifficultyAttributes, ManiaPerformanceAttributes},
     difficulty::gradual::ManiaGradualDifficulty,
-    performance::{gradual::ManiaGradualPerformance, ManiaPerformance},
-    score_state::ManiaScoreState,
+    performance::{InspectManiaPerformance, ManiaPerformance, gradual::ManiaGradualPerformance},
+    score_state::{ManiaHitResults, ManiaScoreState},
     strains::ManiaStrains,
 };
 
@@ -40,6 +41,7 @@ impl IGameMode for Mania {
     type DifficultyAttributes = ManiaDifficultyAttributes;
     type Strains = ManiaStrains;
     type Performance<'map> = ManiaPerformance<'map>;
+    type HitResults = ManiaHitResults;
     type GradualDifficulty = ManiaGradualDifficulty;
     type GradualPerformance = ManiaGradualPerformance;
 
@@ -48,6 +50,13 @@ impl IGameMode for Mania {
         map: &Beatmap,
     ) -> Result<Self::DifficultyAttributes, ConvertError> {
         difficulty::difficulty(difficulty, map)
+    }
+
+    fn checked_difficulty(
+        difficulty: &Difficulty,
+        map: &Beatmap,
+    ) -> Result<Self::DifficultyAttributes, CalculateError> {
+        difficulty::checked_difficulty(difficulty, map)
     }
 
     fn strains(difficulty: &Difficulty, map: &Beatmap) -> Result<Self::Strains, ConvertError> {

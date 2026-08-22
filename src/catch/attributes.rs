@@ -7,8 +7,8 @@ use crate::catch::performance::CatchPerformance;
 pub struct CatchDifficultyAttributes {
     /// The final star rating
     pub stars: f64,
-    /// The approach rate.
-    pub ar: f64,
+    /// Time preempt (AR time window).
+    pub preempt: f64,
     /// The amount of fruits.
     pub n_fruits: u32,
     /// The amount of droplets.
@@ -39,13 +39,13 @@ impl CatchDifficultyAttributes {
         self.into()
     }
 
-    pub(crate) fn set_object_count(&mut self, count: &ObjectCount) {
+    pub(crate) const fn set_object_count(&mut self, count: &ObjectCount) {
         self.n_fruits = count.fruits;
         self.n_droplets = count.droplets;
         self.n_tiny_droplets = count.tiny_droplets;
     }
 
-    pub(crate) fn add_object_count(&mut self, count: GradualObjectCount) {
+    pub(crate) const fn add_object_count(&mut self, count: GradualObjectCount) {
         if count.fruit {
             self.n_fruits += 1;
         } else {
@@ -182,7 +182,7 @@ impl ObjectCountBuilder {
         }
     }
 
-    pub fn record_tiny_droplets(&mut self, n: u32) {
+    pub const fn record_tiny_droplets(&mut self, n: u32) {
         match self {
             Self::Regular { count, take } => {
                 if *take > 0 {

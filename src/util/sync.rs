@@ -1,4 +1,7 @@
-use std::fmt;
+use std::{
+    fmt,
+    hash::{Hash, Hasher},
+};
 
 pub use inner::*;
 
@@ -8,6 +11,12 @@ mod inner {
 
     #[repr(transparent)]
     pub struct RefCount<T>(pub(super) Rc<RefCell<T>>);
+
+    impl<T> Clone for RefCount<T> {
+        fn clone(&self) -> Self {
+            Self(Rc::clone(&self.0))
+        }
+    }
 
     #[repr(transparent)]
     pub struct Weak<T>(pub(super) std::rc::Weak<RefCell<T>>);
@@ -49,6 +58,12 @@ mod inner {
 
     #[repr(transparent)]
     pub struct RefCount<T>(pub(super) Arc<RwLock<T>>);
+
+    impl<T> Clone for RefCount<T> {
+        fn clone(&self) -> Self {
+            Self(Arc::clone(&self.0))
+        }
+    }
 
     #[repr(transparent)]
     pub struct Weak<T>(pub(super) std::sync::Weak<RwLock<T>>);
@@ -130,14 +145,48 @@ impl<T: fmt::Debug> fmt::Debug for RefCount<T> {
     }
 }
 
+impl<T: PartialEq> PartialEq for RefCount<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.get().eq(&other.get())
+    }
+}
+
+impl<T: Eq> Eq for RefCount<T> {}
+
+impl<T: Hash> Hash for RefCount<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get().hash(state);
+    }
+}
+
+impl<T> Clone for Weak<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<T: fmt::Debug> fmt::Debug for Weak<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
     }
 }
 
+impl<T: PartialEq> PartialEq for Weak<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.upgrade().eq(&other.upgrade())
+    }
+}
+
+impl<T: Eq> Eq for Weak<T> {}
+
+impl<T: Hash> Hash for Weak<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.upgrade().hash(state);
+    }
+}
+
 /// ```compile_fail
-/// use akatsuki_pp::{taiko::TaikoGradualDifficulty, Beatmap, Difficulty};
+/// use rosu_pp::{taiko::TaikoGradualDifficulty, Beatmap, Difficulty};
 ///
 /// let map = Beatmap::from_bytes(&[]).unwrap();
 /// let difficulty = Difficulty::new();
@@ -153,7 +202,7 @@ const fn _share_gradual_taiko() {}
 mod tests {
     #[test]
     fn share_gradual_taiko() {
-        use crate::{taiko::TaikoGradualDifficulty, Beatmap, Difficulty};
+        use crate::{Beatmap, Difficulty, taiko::TaikoGradualDifficulty};
 
         let map = Beatmap::from_bytes(&[]).unwrap();
         let mut gradual = TaikoGradualDifficulty::new(Difficulty::new(), &map).unwrap();

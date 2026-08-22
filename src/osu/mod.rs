@@ -1,28 +1,32 @@
 use rosu_map::util::Pos;
 
 use crate::{
+    Difficulty,
+    any::CalculateError,
     model::{
         beatmap::Beatmap,
         mode::{ConvertError, IGameMode},
     },
-    Difficulty,
 };
 
 pub use self::{
     attributes::{OsuDifficultyAttributes, OsuPerformanceAttributes},
     difficulty::gradual::OsuGradualDifficulty,
-    performance::{gradual::OsuGradualPerformance, OsuPerformance},
-    score_state::{OsuScoreOrigin, OsuScoreState},
+    performance::{InspectOsuPerformance, OsuPerformance, gradual::OsuGradualPerformance},
+    score_state::{OsuHitResults, OsuScoreOrigin, OsuScoreState},
     strains::OsuStrains,
 };
 
 mod attributes;
 mod convert;
 mod difficulty;
+mod legacy_score_miss_calc;
+mod legacy_score_simulator;
 mod object;
 mod performance;
 mod score_state;
 mod strains;
+mod utils;
 
 const PLAYFIELD_BASE_SIZE: Pos = Pos::new(512.0, 384.0);
 
@@ -35,6 +39,7 @@ impl IGameMode for Osu {
     type DifficultyAttributes = OsuDifficultyAttributes;
     type Strains = OsuStrains;
     type Performance<'map> = OsuPerformance<'map>;
+    type HitResults = OsuHitResults;
     type GradualDifficulty = OsuGradualDifficulty;
     type GradualPerformance = OsuGradualPerformance;
 
@@ -43,6 +48,13 @@ impl IGameMode for Osu {
         map: &Beatmap,
     ) -> Result<Self::DifficultyAttributes, ConvertError> {
         difficulty::difficulty(difficulty, map)
+    }
+
+    fn checked_difficulty(
+        difficulty: &Difficulty,
+        map: &Beatmap,
+    ) -> Result<Self::DifficultyAttributes, CalculateError> {
+        difficulty::checked_difficulty(difficulty, map)
     }
 
     fn strains(difficulty: &Difficulty, map: &Beatmap) -> Result<Self::Strains, ConvertError> {

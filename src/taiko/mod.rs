@@ -1,18 +1,19 @@
 use rosu_map::section::general::GameMode;
 
 use crate::{
+    Difficulty,
+    any::CalculateError,
     model::{
         beatmap::Beatmap,
         mode::{ConvertError, IGameMode},
     },
-    Difficulty,
 };
 
 pub use self::{
     attributes::{TaikoDifficultyAttributes, TaikoPerformanceAttributes},
     difficulty::gradual::TaikoGradualDifficulty,
-    performance::{gradual::TaikoGradualPerformance, TaikoPerformance},
-    score_state::TaikoScoreState,
+    performance::{InspectTaikoPerformance, TaikoPerformance, gradual::TaikoGradualPerformance},
+    score_state::{TaikoHitResults, TaikoScoreState},
     strains::TaikoStrains,
 };
 
@@ -40,6 +41,7 @@ impl IGameMode for Taiko {
     type DifficultyAttributes = TaikoDifficultyAttributes;
     type Strains = TaikoStrains;
     type Performance<'map> = TaikoPerformance<'map>;
+    type HitResults = TaikoHitResults;
     type GradualDifficulty = TaikoGradualDifficulty;
     type GradualPerformance = TaikoGradualPerformance;
 
@@ -48,6 +50,13 @@ impl IGameMode for Taiko {
         map: &Beatmap,
     ) -> Result<Self::DifficultyAttributes, ConvertError> {
         difficulty::difficulty(difficulty, map)
+    }
+
+    fn checked_difficulty(
+        difficulty: &Difficulty,
+        map: &Beatmap,
+    ) -> Result<Self::DifficultyAttributes, CalculateError> {
+        difficulty::checked_difficulty(difficulty, map)
     }
 
     fn strains(difficulty: &Difficulty, map: &Beatmap) -> Result<Self::Strains, ConvertError> {
